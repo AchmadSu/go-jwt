@@ -7,12 +7,22 @@ import (
 
 	"example.com/m/initializers"
 	"example.com/m/models"
+	"example.com/m/repositories"
+	"example.com/m/services"
 	"example.com/m/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
+
+type PublicUser struct {
+	ID        uint      `json:"id"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+var userService = services.NewUserService(repositories.NewUserRepository())
 
 func SignUp(c *gin.Context) {
 	var body struct {
@@ -114,76 +124,66 @@ func Login(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
+	resp := utils.NewResponse()
 	id := c.Query("id")
 	email := c.Query("email")
 
-	type PublicUser struct {
-		ID        uint      `json:"id"`
-		Email     string    `json:"email"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
+	if email != "" || id != "" {
+		user, result := userService.GetUser(id, email)
+
+		if result.Error != nil {
+			resp.SetStatus(http.StatusInternalServerError).
+				SetMessage("Failed to get user data").
+				SetError("Unknown error occurred").
+				Send(c)
+			return
+		}
+
+		if result.RowsAffected == 0 {
+			resp.SetStatus(http.StatusNotFound).
+				SetMessage("User not found").
+				Send(c)
+			return
+		}
+
+		publicUser := ToPublicUser(user)
+		resp.SetMessage("Get user successfully").
+			SetPayload(publicUser).
+			Send(c)
+		return
 	}
 
-	if email != "" || id != "" {
-		user, result := FindUserByIDOrEmail(id, email)
-		if result.Error != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "User not found",
-			})
-			return
-		}
-		publicUser := PublicUser{
-			ID:        user.ID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-		}
-		c.JSON(http.StatusOK, gin.H{"user": publicUser})
-	} else {
-		pg, err := utils.Paginate(c, &models.User{})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Pagination failed"})
-			return
-		}
-		var users []models.User
-		// initializers.DB.Find(&users)
-		if err := initializers.DB.Limit(pg.Limit).Offset(pg.Offset).Find(&users).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
-			return
-		}
+	users, pg, err := userService.GetAllUsers(c)
+	if err != nil {
+		resp.SetStatus(http.StatusInternalServerError).
+			SetMessage("Failed to fetch user data").
+			SetError("Unknown error occurred").
+			Send(c)
+		return
+	}
 
-		publicUsers := make([]PublicUser, 0, len(users))
-		for _, u := range users {
-			publicUsers = append(publicUsers, PublicUser{
-				ID:        u.ID,
-				Email:     u.Email,
-				CreatedAt: u.CreatedAt,
-				UpdatedAt: u.UpdatedAt,
-			})
-		}
+	publicUsers := make([]PublicUser, 0, len(users))
+	for _, u := range users {
+		publicUsers = append(publicUsers, ToPublicUser(u))
+	}
 
-		// c.JSON(http.StatusOK, gin.H{"users": publicUsers})
-		c.JSON(http.StatusOK, gin.H{
-			"users":        publicUsers,
+	resp.SetMessage("Get users successfully").
+		SetPayload(publicUsers).
+		SetMeta(gin.H{
 			"total":        pg.Total,
 			"current_page": pg.Page,
 			"total_pages":  pg.TotalPages,
-		})
-	}
-
+		}).
+		Send(c)
 }
 
-func FindUserByIDOrEmail(id, email string) (models.User, *gorm.DB) {
-	var user models.User
-	var result *gorm.DB
-
-	if id != "" {
-		result = initializers.DB.First(&user, "id = ?", id)
-	} else {
-		result = initializers.DB.First(&user, "email = ?", email)
+func ToPublicUser(u models.User) PublicUser {
+	return PublicUser{
+		ID:        u.ID,
+		Email:     u.Email,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
 	}
-
-	return user, result
 }
 
 func Validate(c *gin.Context) {
