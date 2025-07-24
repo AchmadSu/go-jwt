@@ -6,7 +6,6 @@ import (
 	"example.com/m/errs"
 	"example.com/m/models"
 	"example.com/m/repositories"
-	"example.com/m/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -41,9 +40,9 @@ func (v *UserValidatorService) ValidateUserLogin(input models.LoginUserInput) (m
 		return models.User{}, errs.New("Email has not registered yet. Please Sign Up!", http.StatusNotFound)
 	}
 
-	isValidPass, err := CheckPassword(user.Password, input.Password)
+	isValidPass, _ := CheckPassword(user.Password, input.Password)
 	if !isValidPass {
-		return models.User{}, errs.New(utils.GetSafeErrorMessage(err, "Password is not correct!"), http.StatusNotAcceptable)
+		return models.User{}, errs.New("Password is not correct!", http.StatusUnauthorized)
 	}
 
 	return user, nil
