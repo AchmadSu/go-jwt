@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"example.com/m/errs"
 	"example.com/m/initializers"
 	"example.com/m/models"
 	"example.com/m/repositories"
@@ -15,53 +16,39 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type PublicUser struct {
-	ID        uint      `json:"id"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 var userService = services.NewUserService(repositories.NewUserRepository())
 
 func SignUp(c *gin.Context) {
-	var body struct {
-		Email    string
-		Password string
-	}
-
-	if c.Bind(&body) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read body",
-		})
-
+	var input models.CreateUserInput
+	resp := utils.NewResponse()
+	message := "Failed to create user"
+	if c.Bind(&input) != nil {
+		resp.SetStatus(http.StatusBadRequest).
+			SetMessage(message).
+			SetError("Failed to read body").
+			Send(c)
 		return
 	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
-
+	user, err := userService.Register(input)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to hash password",
-		})
-
+		if httpErr, ok := err.(*errs.HTTPError); ok {
+			resp.SetStatus(httpErr.StatusCode).
+				SetMessage(message).
+				SetError(httpErr.Message).
+				Send(c)
+			return
+		}
+		resp.SetStatus(http.StatusInternalServerError).
+			SetMessage(message).
+			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
+			Send(c)
 		return
 	}
-
-	user := models.User{Email: body.Email, Password: string(hash)}
-	result := initializers.DB.Create(&user)
-
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to create user",
-		})
-
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User has registered successfully",
-	})
+	message = "User has registered successfully"
+	resp.SetStatus(http.StatusOK).
+		SetMessage(message).
+		SetPayload(utils.ToPublicUser(user)).
+		Send(c)
 }
 
 func Login(c *gin.Context) {
@@ -134,7 +121,7 @@ func GetUsers(c *gin.Context) {
 		if result.Error != nil {
 			resp.SetStatus(http.StatusInternalServerError).
 				SetMessage("Failed to get user data").
-				SetError("Unknown error occurred").
+				SetError(utils.GetSafeErrorMessage(result.Error, "Unknown error occurred")).
 				Send(c)
 			return
 		}
@@ -146,7 +133,7 @@ func GetUsers(c *gin.Context) {
 			return
 		}
 
-		publicUser := ToPublicUser(user)
+		publicUser := utils.ToPublicUser(user)
 		resp.SetMessage("Get user successfully").
 			SetPayload(publicUser).
 			Send(c)
@@ -157,14 +144,14 @@ func GetUsers(c *gin.Context) {
 	if err != nil {
 		resp.SetStatus(http.StatusInternalServerError).
 			SetMessage("Failed to fetch user data").
-			SetError("Unknown error occurred").
+			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
 			Send(c)
 		return
 	}
 
-	publicUsers := make([]PublicUser, 0, len(users))
+	publicUsers := make([]models.PublicUser, 0, len(users))
 	for _, u := range users {
-		publicUsers = append(publicUsers, ToPublicUser(u))
+		publicUsers = append(publicUsers, utils.ToPublicUser(u))
 	}
 
 	resp.SetMessage("Get users successfully").
@@ -175,15 +162,6 @@ func GetUsers(c *gin.Context) {
 			"total_pages":  pg.TotalPages,
 		}).
 		Send(c)
-}
-
-func ToPublicUser(u models.User) PublicUser {
-	return PublicUser{
-		ID:        u.ID,
-		Email:     u.Email,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
-	}
 }
 
 func Validate(c *gin.Context) {

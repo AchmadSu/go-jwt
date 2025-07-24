@@ -2,6 +2,7 @@ package utils
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -48,4 +49,11 @@ func (r *Response) SetMeta(meta interface{}) *Response {
 
 func (r *Response) Send(c *gin.Context) {
 	c.JSON(r.StatusCode, r)
+}
+
+func GetSafeErrorMessage(err error, fallback string) string {
+	if err == nil || strings.TrimSpace(err.Error()) == "" {
+		return fallback
+	}
+	return err.Error()
 }

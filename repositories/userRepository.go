@@ -12,6 +12,7 @@ type UserRepository interface {
 	FindByID(id string) (models.User, *gorm.DB)
 	FindByEmail(email string) (models.User, *gorm.DB)
 	FindAll(c *gin.Context) ([]models.User, *utils.Pagination, error)
+	Create(models.CreateUserInput) (models.User, error)
 }
 
 type userRepository struct{}
@@ -41,4 +42,14 @@ func (r *userRepository) FindAll(c *gin.Context) ([]models.User, *utils.Paginati
 	var users []models.User
 	result := initializers.DB.Limit(pg.Limit).Offset(pg.Offset).Find(&users)
 	return users, pg, result.Error
+}
+
+func (r *userRepository) Create(input models.CreateUserInput) (models.User, error) {
+	user := models.User{
+		Email:    input.Email,
+		Password: input.Password,
+	}
+
+	result := initializers.DB.Create(&user)
+	return user, result.Error
 }
