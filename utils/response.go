@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"example.com/m/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +14,11 @@ type Response struct {
 	Payload    interface{} `json:"payload,omitempty"`
 	Meta       interface{} `json:"meta,omitempty"`
 	Error      string      `json:"error,omitempty"`
+}
+
+type LoginResponse struct {
+	User  models.PublicUser `json:"user"`
+	Token string            `json:"token"`
 }
 
 func NewResponse() *Response {

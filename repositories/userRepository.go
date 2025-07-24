@@ -9,7 +9,7 @@ import (
 )
 
 type UserRepository interface {
-	FindByID(id string) (models.User, *gorm.DB)
+	FindByID(id int) (models.User, *gorm.DB)
 	FindByEmail(email string) (models.User, *gorm.DB)
 	FindAll(c *gin.Context) ([]models.User, *utils.Pagination, error)
 	Create(models.CreateUserInput) (models.User, error)
@@ -21,7 +21,7 @@ func NewUserRepository() UserRepository {
 	return &userRepository{}
 }
 
-func (r *userRepository) FindByID(id string) (models.User, *gorm.DB) {
+func (r *userRepository) FindByID(id int) (models.User, *gorm.DB) {
 	var user models.User
 	result := initializers.DB.First(&user, "id = ?", id)
 	return user, result

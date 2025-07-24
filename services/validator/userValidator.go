@@ -4,7 +4,10 @@ import (
 	"net/http"
 
 	"example.com/m/errs"
+	"example.com/m/models"
 	"example.com/m/repositories"
+	"example.com/m/utils"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserValidatorService struct {
@@ -23,6 +26,33 @@ func (v *UserValidatorService) ValidateUserRegister(email string) (bool, error) 
 
 	if result.RowsAffected > 0 {
 		return false, errs.New("Email is already exists. Please try another email!", http.StatusNotAcceptable)
+	}
+
+	return true, nil
+}
+
+func (v *UserValidatorService) ValidateUserLogin(input models.LoginUserInput) (models.User, error) {
+	user, result := v.userRepo.FindByEmail(input.Email)
+	if result.Error != nil {
+		return models.User{}, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return models.User{}, errs.New("Email has not registered yet. Please Sign Up!", http.StatusNotFound)
+	}
+
+	isValidPass, err := CheckPassword(user.Password, input.Password)
+	if !isValidPass {
+		return models.User{}, errs.New(utils.GetSafeErrorMessage(err, "Password is not correct!"), http.StatusNotAcceptable)
+	}
+
+	return user, nil
+}
+
+func CheckPassword(password string, input string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(password), []byte(input))
+	if err != nil {
+		return false, err
 	}
 
 	return true, nil
