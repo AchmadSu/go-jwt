@@ -3,9 +3,10 @@ package validator
 import (
 	"net/http"
 
+	"example.com/m/dto"
 	"example.com/m/errs"
-	"example.com/m/models"
 	"example.com/m/repositories"
+	"example.com/m/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -30,26 +31,27 @@ func (v *UserValidatorService) ValidateUserRegister(email string) (bool, error) 
 	return true, nil
 }
 
-func (v *UserValidatorService) ValidateUserLogin(input models.LoginUserInput) (models.User, error) {
+func (v *UserValidatorService) ValidateUserLogin(input *dto.LoginUserInput) (dto.PublicUser, error) {
 	user, result := v.userRepo.FindByEmail(input.Email)
 	if result.Error != nil {
-		return models.User{}, result.Error
+		return dto.PublicUser{}, result.Error
 	}
 
 	if result.RowsAffected == 0 {
-		return models.User{}, errs.New("Email has not registered yet. Please Sign Up!", http.StatusNotFound)
+		return dto.PublicUser{}, errs.New("Email has not registered yet. Please Sign Up!", http.StatusNotFound)
 	}
 
 	isValidPass, _ := CheckPassword(user.Password, input.Password)
 	if !isValidPass {
-		return models.User{}, errs.New("Password is not correct!", http.StatusUnauthorized)
+		return dto.PublicUser{}, errs.New("Password is not correct!", http.StatusUnauthorized)
 	}
 
-	return user, nil
+	return utils.ToPublicUser(user), nil
 }
 
 func CheckPassword(password string, input string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword([]byte(password), []byte(input))
+
 	if err != nil {
 		return false, err
 	}

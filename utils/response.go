@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"example.com/m/models"
+	"example.com/m/dto"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,8 +17,8 @@ type Response struct {
 }
 
 type LoginResponse struct {
-	User  models.PublicUser `json:"user"`
-	Token string            `json:"token"`
+	User  dto.PublicUser `json:"user"`
+	Token string         `json:"token"`
 }
 
 func NewResponse() *Response {

@@ -3,8 +3,8 @@ package controllers
 import (
 	"net/http"
 
+	"example.com/m/dto"
 	"example.com/m/errs"
-	"example.com/m/models"
 	"example.com/m/repositories"
 	"example.com/m/services"
 	"example.com/m/utils"
@@ -14,7 +14,7 @@ import (
 var userService = services.NewUserService(repositories.NewUserRepository())
 
 func SignUp(c *gin.Context) {
-	var input models.CreateUserInput
+	var input dto.CreateUserInput
 	resp := utils.NewResponse()
 	message := "Failed to create user"
 	if c.Bind(&input) != nil {
@@ -24,7 +24,7 @@ func SignUp(c *gin.Context) {
 			Send(c)
 		return
 	}
-	user, err := userService.Register(input)
+	user, err := userService.Register(&input)
 	if err != nil {
 		if httpErr, ok := err.(*errs.HTTPError); ok {
 			resp.SetStatus(httpErr.StatusCode).
@@ -42,12 +42,12 @@ func SignUp(c *gin.Context) {
 	message = "User has registered successfully"
 	resp.SetStatus(http.StatusOK).
 		SetMessage(message).
-		SetPayload(utils.ToPublicUser(user)).
+		SetPayload(user).
 		Send(c)
 }
 
 func Login(c *gin.Context) {
-	var input models.LoginUserInput
+	var input dto.LoginUserInput
 	resp := utils.NewResponse()
 	message := "Unauthorized. Failed to login"
 
@@ -59,9 +59,9 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	user, tokenString, err := userService.Login(c, input)
-	if err != nil {
-		if httpErr, ok := err.(*errs.HTTPError); ok {
+	result := userService.Login(&input)
+	if result.Err != nil {
+		if httpErr, ok := result.Err.(*errs.HTTPError); ok {
 			resp.SetStatus(httpErr.StatusCode).
 				SetMessage(message).
 				SetError(httpErr.Message).
@@ -70,17 +70,20 @@ func Login(c *gin.Context) {
 		}
 		resp.SetStatus(http.StatusInternalServerError).
 			SetMessage(message).
-			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
+			SetError(utils.GetSafeErrorMessage(result.Err, "Unknown error occurred")).
 			Send(c)
 		return
 	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("Authorization", result.Token, result.Exp, "", "", false, true)
 
 	message = "Login successfully"
 	resp.SetStatus(http.StatusOK).
 		SetMessage(message).
 		SetPayload(utils.LoginResponse{
-			User:  utils.ToPublicUser(user),
-			Token: tokenString,
+			User:  result.User,
+			Token: result.Token,
 		}).
 		Send(c)
 }
@@ -91,31 +94,39 @@ func GetUsers(c *gin.Context) {
 	email := c.Query("email")
 
 	if email != "" || id != "" {
-		user, result := userService.GetUser(id, email)
+		user, err := userService.GetUser(id, email)
 
-		if result.Error != nil {
+		if err != nil {
 			resp.SetStatus(http.StatusInternalServerError).
 				SetMessage("Failed to get user data").
-				SetError(utils.GetSafeErrorMessage(result.Error, "Unknown error occurred")).
+				SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
 				Send(c)
 			return
 		}
 
-		if result.RowsAffected == 0 {
+		if utils.IsEmptyUser(user) {
 			resp.SetStatus(http.StatusNotFound).
 				SetMessage("User not found").
 				Send(c)
 			return
 		}
 
-		publicUser := utils.ToPublicUser(user)
-		resp.SetMessage("Get user successfully").
-			SetPayload(publicUser).
+		resp.SetMessage("Get user by ID or Email successfully").
+			SetPayload(user).
 			Send(c)
 		return
 	}
 
-	users, pg, err := userService.GetAllUsers(c)
+	var pagination dto.PaginationRequest
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		resp.SetStatus(http.StatusBadRequest).
+			SetMessage("Failed to get user data").
+			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
+			Send(c)
+		return
+	}
+
+	pg, err := userService.GetAllUsers(&pagination)
 	if err != nil {
 		resp.SetStatus(http.StatusInternalServerError).
 			SetMessage("Failed to fetch user data").
@@ -124,17 +135,12 @@ func GetUsers(c *gin.Context) {
 		return
 	}
 
-	publicUsers := make([]models.PublicUser, 0, len(users))
-	for _, u := range users {
-		publicUsers = append(publicUsers, utils.ToPublicUser(u))
-	}
-
 	resp.SetMessage("Get users successfully").
-		SetPayload(publicUsers).
+		SetPayload(pg.Data).
 		SetMeta(gin.H{
-			"total":        pg.Total,
-			"current_page": pg.Page,
-			"total_pages":  pg.TotalPages,
+			"page":      pg.Page,
+			"totalPage": pg.TotalPages,
+			"totalData": pg.Total,
 		}).
 		Send(c)
 }
