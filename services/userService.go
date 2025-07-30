@@ -16,6 +16,7 @@ type UserService interface {
 	GetAllUsers(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error)
 	Register(input *dto.CreateUserInput) (dto.PublicUser, error)
 	Login(input *dto.LoginUserInput) dto.LoginResult
+	Logout(tokenString string) error
 }
 
 type userService struct {
@@ -39,8 +40,8 @@ func (s *userService) GetUser(id, email string) (dto.PublicUser, error) {
 	return utils.ToPublicUser(user), result.Error
 }
 
-func (s *userService) GetAllUsers(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error) {
-	pg, err := s.repo.FindAll(paginate)
+func (s *userService) GetAllUsers(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error) {
+	pg, err := s.repo.FindAll(request)
 	if err != nil {
 		return nil, err
 	}
@@ -74,4 +75,10 @@ func (s *userService) Login(input *dto.LoginUserInput) dto.LoginResult {
 		return dto.LoginResult{Err: err}
 	}
 	return dto.LoginResult{User: user, Token: tokenString, Exp: exp, Err: nil}
+}
+
+func (s *userService) Logout(tokenString string) error {
+	token := token.NewJwtTokenService(s.repo)
+	err := token.BlacklistToken(tokenString)
+	return err
 }

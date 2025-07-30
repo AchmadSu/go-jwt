@@ -150,3 +150,42 @@ func Validate(c *gin.Context) {
 		"message": "I'm logged in",
 	})
 }
+
+func Logout(c *gin.Context) {
+	message := "Logout failed!"
+	resp := utils.NewResponse()
+	tokenString, err := c.Cookie("Authorization")
+	if err != nil {
+		resp.SetStatus(http.StatusUnauthorized).
+			SetMessage(message).
+			SetError(err.Error()).
+			Send(c)
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	err = userService.Logout(tokenString)
+	if err != nil {
+		if httpErr, ok := err.(*errs.HTTPError); ok {
+			resp.SetStatus(httpErr.StatusCode).
+				SetMessage(message).
+				SetError(httpErr.Message).
+				Send(c)
+			return
+		}
+		resp.SetStatus(http.StatusInternalServerError).
+			SetMessage(message).
+			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
+			Send(c)
+		return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("Authorization", "", -1, "", "", false, true)
+	c.Set("user", nil)
+
+	message = "Logout successfuly!"
+	resp.SetStatus(http.StatusOK).
+		SetMessage(message).
+		Send(c)
+}

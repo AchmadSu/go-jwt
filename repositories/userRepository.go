@@ -35,7 +35,7 @@ func (r *userRepository) FindByEmail(email string) (models.User, *gorm.DB) {
 
 func (r *userRepository) FindAll(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error) {
 	query := initializers.DB.Model(&models.User{}).
-		Select("id, email")
+		Select("id, email", "created_at", "updated_at")
 
 	return utils.Paginate[dto.PublicUser](request, query)
 }
