@@ -42,7 +42,7 @@ func (j *jwtTokenService) CreateToken(sub int) (string, int, error) {
 }
 
 func (j *jwtTokenService) ValidateToken(tokenString string) (models.User, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			alg, _ := token.Header["alg"].(string)
 			errorMessage := "Unexpected signing method: " + alg
@@ -87,7 +87,7 @@ func (j *jwtTokenService) ValidateToken(tokenString string) (models.User, error)
 }
 
 func (j *jwtTokenService) BlacklistToken(tokenString string) error {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			alg, _ := token.Header["alg"].(string)
 			errorMessage := "Unexpected signing method: " + alg

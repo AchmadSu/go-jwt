@@ -5,6 +5,7 @@ import (
 
 	"example.com/m/dto"
 	"example.com/m/errs"
+	"example.com/m/helpers"
 	"example.com/m/repositories"
 	"example.com/m/services"
 	"example.com/m/utils"
@@ -154,17 +155,8 @@ func Validate(c *gin.Context) {
 func Logout(c *gin.Context) {
 	message := "Logout failed!"
 	resp := utils.NewResponse()
-	tokenString, err := c.Cookie("Authorization")
-	if err != nil {
-		resp.SetStatus(http.StatusUnauthorized).
-			SetMessage(message).
-			SetError(err.Error()).
-			Send(c)
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-
-	err = userService.Logout(tokenString)
+	tokenString, _ := helpers.ExtractToken(c)
+	err := userService.Logout(tokenString)
 	if err != nil {
 		if httpErr, ok := err.(*errs.HTTPError); ok {
 			resp.SetStatus(httpErr.StatusCode).

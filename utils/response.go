@@ -9,11 +9,11 @@ import (
 )
 
 type Response struct {
-	StatusCode int         `json:"statusCode"`
-	Message    string      `json:"message"`
-	Payload    interface{} `json:"payload,omitempty"`
-	Meta       interface{} `json:"meta,omitempty"`
-	Error      string      `json:"error,omitempty"`
+	StatusCode int    `json:"statusCode"`
+	Message    string `json:"message"`
+	Payload    any    `json:"payload,omitempty"`
+	Meta       any    `json:"meta,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 type LoginResponse struct {
@@ -38,7 +38,7 @@ func (r *Response) SetMessage(msg string) *Response {
 	return r
 }
 
-func (r *Response) SetPayload(data interface{}) *Response {
+func (r *Response) SetPayload(data any) *Response {
 	r.Payload = data
 	return r
 }
@@ -48,7 +48,7 @@ func (r *Response) SetError(err string) *Response {
 	return r
 }
 
-func (r *Response) SetMeta(meta interface{}) *Response {
+func (r *Response) SetMeta(meta any) *Response {
 	r.Meta = meta
 	return r
 }
