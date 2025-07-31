@@ -146,12 +146,6 @@ func GetUsers(c *gin.Context) {
 		Send(c)
 }
 
-func Validate(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "I'm logged in",
-	})
-}
-
 func Logout(c *gin.Context) {
 	message := "Logout failed!"
 	resp := utils.NewResponse()
