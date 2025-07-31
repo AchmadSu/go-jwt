@@ -1,9 +1,11 @@
 package services
 
 import (
+	"net/http"
 	"strconv"
 
 	"example.com/m/dto"
+	"example.com/m/errs"
 	"example.com/m/repositories"
 	"example.com/m/services/token"
 	"example.com/m/services/validator"
@@ -31,12 +33,18 @@ func (s *userService) GetUser(id, email string) (dto.PublicUser, error) {
 	if id != "" {
 		parsedID, err := strconv.Atoi(id)
 		if err != nil {
-			return dto.PublicUser{}, err
+			return dto.PublicUser{}, errs.New("Request User ID is not a number!", http.StatusBadRequest)
 		}
 		user, result := s.repo.FindByID(parsedID)
+		if utils.IsEmptyUser(utils.ToPublicUser(user)) {
+			return dto.PublicUser{}, errs.New("User not found", http.StatusNotFound)
+		}
 		return utils.ToPublicUser(user), result.Error
 	}
 	user, result := s.repo.FindByEmail(email)
+	if utils.IsEmptyUser(utils.ToPublicUser(user)) {
+		return dto.PublicUser{}, errs.New("User not found", http.StatusNotFound)
+	}
 	return utils.ToPublicUser(user), result.Error
 }
 

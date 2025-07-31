@@ -98,16 +98,16 @@ func GetUsers(c *gin.Context) {
 		user, err := userService.GetUser(id, email)
 
 		if err != nil {
+			if httpErr, ok := err.(*errs.HTTPError); ok {
+				resp.SetStatus(httpErr.StatusCode).
+					SetMessage("Failed to fetch user data").
+					SetError(httpErr.Message).
+					Send(c)
+				return
+			}
 			resp.SetStatus(http.StatusInternalServerError).
 				SetMessage("Failed to get user data").
 				SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-				Send(c)
-			return
-		}
-
-		if utils.IsEmptyUser(user) {
-			resp.SetStatus(http.StatusNotFound).
-				SetMessage("User not found").
 				Send(c)
 			return
 		}
@@ -129,6 +129,13 @@ func GetUsers(c *gin.Context) {
 
 	pg, err := userService.GetAllUsers(&pagination)
 	if err != nil {
+		if httpErr, ok := err.(*errs.HTTPError); ok {
+			resp.SetStatus(httpErr.StatusCode).
+				SetMessage("Failed to fetch user data").
+				SetError(httpErr.Message).
+				Send(c)
+			return
+		}
 		resp.SetStatus(http.StatusInternalServerError).
 			SetMessage("Failed to fetch user data").
 			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
