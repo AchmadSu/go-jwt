@@ -70,6 +70,10 @@ func (s *userService) GetAllUsers(request *dto.PaginationRequest) (*dto.Paginati
 		return nil, err
 	}
 
+	if len(pg.Data) == 0 {
+		return nil, errs.New("Users not found", http.StatusNotFound)
+	}
+	
 	return pg, err
 }
 
