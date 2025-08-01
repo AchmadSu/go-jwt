@@ -91,8 +91,7 @@ func (s *userService) Login(input *dto.LoginUserInput) dto.LoginResult {
 	if err != nil {
 		return dto.LoginResult{Err: err}
 	}
-	token := token.NewJwtTokenService(s.repo)
-	tokenString, exp, err := token.CreateToken(int(user.ID))
+	tokenString, exp, err := s.token.CreateToken(int(user.ID))
 	if err != nil {
 		return dto.LoginResult{Err: err}
 	}
