@@ -22,30 +22,46 @@ type UserService interface {
 }
 
 type userService struct {
-	repo repositories.UserRepository
+	repo      repositories.UserRepository
+	validator validator.UserValidatorService
+	token     token.JwtTokenService
 }
 
-func NewUserService(repo repositories.UserRepository) UserService {
-	return &userService{repo}
+func NewUserService(
+	repo repositories.UserRepository,
+	validator validator.UserValidatorService,
+	token token.JwtTokenService,
+) UserService {
+	return &userService{
+		repo:      repo,
+		validator: validator,
+		token:     token,
+	}
 }
 
 func (s *userService) GetUser(id, email string) (dto.PublicUser, error) {
+	var publicUser dto.PublicUser
+	var errResult error
+
 	if id != "" {
 		parsedID, err := strconv.Atoi(id)
 		if err != nil {
-			return dto.PublicUser{}, errs.New("Request User ID is not a number!", http.StatusBadRequest)
+			return dto.PublicUser{}, errs.New("User ID is not a number!", http.StatusBadRequest)
 		}
 		user, result := s.repo.FindByID(parsedID)
-		if utils.IsEmptyUser(utils.ToPublicUser(user)) {
-			return dto.PublicUser{}, errs.New("User not found", http.StatusNotFound)
-		}
-		return utils.ToPublicUser(user), result.Error
+		publicUser = utils.ToPublicUser(user)
+		errResult = result.Error
+	} else {
+		user, result := s.repo.FindByEmail(email)
+		publicUser = utils.ToPublicUser(user)
+		errResult = result.Error
 	}
-	user, result := s.repo.FindByEmail(email)
-	if utils.IsEmptyUser(utils.ToPublicUser(user)) {
+
+	if utils.IsEmptyUser(publicUser) {
 		return dto.PublicUser{}, errs.New("User not found", http.StatusNotFound)
 	}
-	return utils.ToPublicUser(user), result.Error
+
+	return publicUser, errResult
 }
 
 func (s *userService) GetAllUsers(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error) {
@@ -58,8 +74,7 @@ func (s *userService) GetAllUsers(request *dto.PaginationRequest) (*dto.Paginati
 }
 
 func (s *userService) Register(input *dto.CreateUserInput) (dto.PublicUser, error) {
-	validator := validator.NewUserValidatorService(s.repo)
-	isValid, err := validator.ValidateUserRegister(input.Email)
+	isValid, err := s.validator.ValidateUserRegister(input.Email)
 	if !isValid {
 		return dto.PublicUser{}, err
 	}
@@ -72,8 +87,7 @@ func (s *userService) Register(input *dto.CreateUserInput) (dto.PublicUser, erro
 }
 
 func (s *userService) Login(input *dto.LoginUserInput) dto.LoginResult {
-	validator := validator.NewUserValidatorService(s.repo)
-	user, err := validator.ValidateUserLogin(input)
+	user, err := s.validator.ValidateUserLogin(input)
 	if err != nil {
 		return dto.LoginResult{Err: err}
 	}
@@ -86,7 +100,5 @@ func (s *userService) Login(input *dto.LoginUserInput) dto.LoginResult {
 }
 
 func (s *userService) Logout(tokenString string) error {
-	token := token.NewJwtTokenService(s.repo)
-	err := token.BlacklistToken(tokenString)
-	return err
+	return s.token.BlacklistToken(tokenString)
 }

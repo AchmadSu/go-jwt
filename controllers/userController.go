@@ -3,16 +3,13 @@ package controllers
 import (
 	"net/http"
 
+	"example.com/m/bootstrap"
 	"example.com/m/dto"
 	"example.com/m/errs"
 	"example.com/m/helpers"
-	"example.com/m/repositories"
-	"example.com/m/services"
 	"example.com/m/utils"
 	"github.com/gin-gonic/gin"
 )
-
-var userService = services.NewUserService(repositories.NewUserRepository())
 
 func SignUp(c *gin.Context) {
 	var input dto.CreateUserInput
@@ -25,7 +22,7 @@ func SignUp(c *gin.Context) {
 			Send(c)
 		return
 	}
-	user, err := userService.Register(&input)
+	user, err := bootstrap.UserService.Register(&input)
 	if err != nil {
 		if httpErr, ok := err.(*errs.HTTPError); ok {
 			resp.SetStatus(httpErr.StatusCode).
@@ -60,7 +57,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	result := userService.Login(&input)
+	result := bootstrap.UserService.Login(&input)
 	if result.Err != nil {
 		if httpErr, ok := result.Err.(*errs.HTTPError); ok {
 			resp.SetStatus(httpErr.StatusCode).
@@ -95,7 +92,7 @@ func GetUsers(c *gin.Context) {
 	email := c.Query("email")
 
 	if email != "" || id != "" {
-		user, err := userService.GetUser(id, email)
+		user, err := bootstrap.UserService.GetUser(id, email)
 
 		if err != nil {
 			if httpErr, ok := err.(*errs.HTTPError); ok {
@@ -127,7 +124,7 @@ func GetUsers(c *gin.Context) {
 		return
 	}
 
-	pg, err := userService.GetAllUsers(&pagination)
+	pg, err := bootstrap.UserService.GetAllUsers(&pagination)
 	if err != nil {
 		if httpErr, ok := err.(*errs.HTTPError); ok {
 			resp.SetStatus(httpErr.StatusCode).
@@ -157,7 +154,7 @@ func Logout(c *gin.Context) {
 	message := "Logout failed!"
 	resp := utils.NewResponse()
 	tokenString, _ := helpers.ExtractToken(c)
-	err := userService.Logout(tokenString)
+	err := bootstrap.UserService.Logout(tokenString)
 	if err != nil {
 		if httpErr, ok := err.(*errs.HTTPError); ok {
 			resp.SetStatus(httpErr.StatusCode).

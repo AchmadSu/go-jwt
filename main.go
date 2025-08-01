@@ -1,6 +1,7 @@
 package main
 
 import (
+	"example.com/m/bootstrap"
 	"example.com/m/initializers"
 	"example.com/m/routes"
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,7 @@ func init() {
 	initializers.LoadEnvVariables()
 	initializers.ConnectToDb()
 	initializers.SyncDatabase()
+	bootstrap.InitUserService()
 }
 
 func main() {

@@ -17,7 +17,7 @@ import (
 type JwtTokenService interface {
 	CreateToken(sub int) (string, int, error)
 	ValidateToken(tokenString string) (models.User, error)
-	BlacklistToken(tokenString string, exp int64) error
+	BlacklistToken(tokenString string) error
 }
 
 type jwtTokenService struct {
@@ -69,7 +69,7 @@ func (j *jwtTokenService) ValidateToken(tokenString string) (models.User, error)
 		return models.User{}, errs.New("Token is blacklisted. Please re-login.", http.StatusUnauthorized)
 	}
 	if err != nil && err != redis.Nil {
-		return models.User{}, errs.New("Token validation failed. Redis error.", http.StatusInternalServerError)
+		return models.User{}, errs.New(utils.GetSafeErrorMessage(err, "Redis Token validation failed."), http.StatusInternalServerError)
 	}
 
 	subFloat, ok := claims["sub"].(float64)

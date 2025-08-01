@@ -10,15 +10,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserValidatorService struct {
+type UserValidatorService interface {
+	ValidateUserRegister(email string) (bool, error)
+	ValidateUserLogin(input *dto.LoginUserInput) (dto.PublicUser, error)
+}
+
+type userValidatorService struct {
 	userRepo repositories.UserRepository
 }
 
-func NewUserValidatorService(repo repositories.UserRepository) *UserValidatorService {
-	return &UserValidatorService{userRepo: repo}
+func NewUserValidatorService(repo repositories.UserRepository) *userValidatorService {
+	return &userValidatorService{userRepo: repo}
 }
 
-func (v *UserValidatorService) ValidateUserRegister(email string) (bool, error) {
+func (v *userValidatorService) ValidateUserRegister(email string) (bool, error) {
 	_, result := v.userRepo.FindByEmail(email)
 	if result.Error != nil {
 		return false, result.Error
@@ -31,7 +36,7 @@ func (v *UserValidatorService) ValidateUserRegister(email string) (bool, error) 
 	return true, nil
 }
 
-func (v *UserValidatorService) ValidateUserLogin(input *dto.LoginUserInput) (dto.PublicUser, error) {
+func (v *userValidatorService) ValidateUserLogin(input *dto.LoginUserInput) (dto.PublicUser, error) {
 	user, result := v.userRepo.FindByEmail(input.Email)
 	if result.Error != nil {
 		return dto.PublicUser{}, result.Error
