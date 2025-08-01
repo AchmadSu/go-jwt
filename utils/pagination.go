@@ -33,11 +33,6 @@ func Paginate[T any](
 		limit = 100
 	}
 
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
 	var orConditions []string
 	var args []interface{}
 
@@ -69,6 +64,11 @@ func Paginate[T any](
 		query = query.Order(defaultOrder)
 	} else {
 		query = query.Order("id asc")
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(limit)))
