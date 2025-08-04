@@ -16,25 +16,15 @@ func SignUp(c *gin.Context) {
 	resp := utils.NewResponse()
 	message := "Failed to create user"
 	if c.Bind(&input) != nil {
-		resp.SetStatus(http.StatusBadRequest).
-			SetMessage(message).
-			SetError("Failed to read body").
-			Send(c)
+		err := errs.New("Body request invalid", http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
 		return
 	}
 	user, err := bootstrap.UserService.Register(&input)
 	if err != nil {
-		if httpErr, ok := err.(*errs.HTTPError); ok {
-			resp.SetStatus(httpErr.StatusCode).
-				SetMessage(message).
-				SetError(httpErr.Message).
-				Send(c)
-			return
-		}
-		resp.SetStatus(http.StatusInternalServerError).
-			SetMessage(message).
-			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-			Send(c)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
 		return
 	}
 	message = "User has registered successfully"
@@ -50,26 +40,16 @@ func Login(c *gin.Context) {
 	message := "Unauthorized. Failed to login"
 
 	if c.Bind(&input) != nil {
-		resp.SetStatus(http.StatusBadRequest).
-			SetMessage(message).
-			SetError("Failed to read body").
-			Send(c)
+		err := errs.New("Body request invalid", http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
 		return
 	}
 
 	result := bootstrap.UserService.Login(&input)
 	if result.Err != nil {
-		if httpErr, ok := result.Err.(*errs.HTTPError); ok {
-			resp.SetStatus(httpErr.StatusCode).
-				SetMessage(message).
-				SetError(httpErr.Message).
-				Send(c)
-			return
-		}
-		resp.SetStatus(http.StatusInternalServerError).
-			SetMessage(message).
-			SetError(utils.GetSafeErrorMessage(result.Err, "Unknown error occurred")).
-			Send(c)
+		errResp := utils.PrintErrorResponse(resp, result.Err, message)
+		errResp.Send(c)
 		return
 	}
 
@@ -87,29 +67,20 @@ func Login(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	resp := utils.NewResponse()
 	id := c.Query("id")
 	email := c.Query("email")
+	resp := utils.NewResponse()
+	message := "Failed to fetch user data"
 
 	if email != "" || id != "" {
 		user, err := bootstrap.UserService.GetUser(id, email)
-
 		if err != nil {
-			if httpErr, ok := err.(*errs.HTTPError); ok {
-				resp.SetStatus(httpErr.StatusCode).
-					SetMessage("Failed to fetch user data").
-					SetError(httpErr.Message).
-					Send(c)
-				return
-			}
-			resp.SetStatus(http.StatusInternalServerError).
-				SetMessage("Failed to get user data").
-				SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-				Send(c)
+			errResp := utils.PrintErrorResponse(resp, err, message)
+			errResp.Send(c)
 			return
 		}
-
-		resp.SetMessage("Get user by ID or Email successfully").
+		message = "Get user by ID or Email successfully"
+		resp.SetMessage(message).
 			SetPayload(user).
 			Send(c)
 		return
@@ -117,30 +88,21 @@ func GetUsers(c *gin.Context) {
 
 	var pagination dto.PaginationRequest
 	if err := c.ShouldBindQuery(&pagination); err != nil {
-		resp.SetStatus(http.StatusBadRequest).
-			SetMessage("Failed to get user data").
-			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-			Send(c)
+		err = errs.New(utils.GetSafeErrorMessage(err, "Body request pagination invalid"), http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
 		return
 	}
 
 	pg, err := bootstrap.UserService.GetAllUsers(&pagination)
 	if err != nil {
-		if httpErr, ok := err.(*errs.HTTPError); ok {
-			resp.SetStatus(httpErr.StatusCode).
-				SetMessage("Failed to fetch user data").
-				SetError(httpErr.Message).
-				Send(c)
-			return
-		}
-		resp.SetStatus(http.StatusInternalServerError).
-			SetMessage("Failed to fetch user data").
-			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-			Send(c)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
 		return
 	}
 
-	resp.SetMessage("Get users successfully").
+	message = "Get users successfully"
+	resp.SetMessage(message).
 		SetPayload(pg.Data).
 		SetMeta(gin.H{
 			"page":      pg.Page,
@@ -156,17 +118,8 @@ func Logout(c *gin.Context) {
 	tokenString, _ := helpers.ExtractToken(c)
 	err := bootstrap.UserService.Logout(tokenString)
 	if err != nil {
-		if httpErr, ok := err.(*errs.HTTPError); ok {
-			resp.SetStatus(httpErr.StatusCode).
-				SetMessage(message).
-				SetError(httpErr.Message).
-				Send(c)
-			return
-		}
-		resp.SetStatus(http.StatusInternalServerError).
-			SetMessage(message).
-			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-			Send(c)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
 		return
 	}
 

@@ -1,9 +1,6 @@
 package middleware
 
 import (
-	"net/http"
-
-	"example.com/m/errs"
 	"example.com/m/helpers"
 	"example.com/m/repositories"
 	"example.com/m/services/token"
@@ -17,37 +14,17 @@ func RequireAuth(c *gin.Context) {
 	resp := utils.NewResponse()
 	tokenString, err := helpers.ExtractToken(c)
 	if err != nil {
-		if httpErr, ok := err.(*errs.HTTPError); ok {
-			resp.SetStatus(httpErr.StatusCode).
-				SetMessage(messageError).
-				SetError(httpErr.Message).
-				Send(c)
-			c.AbortWithStatus(httpErr.StatusCode)
-			return
-		}
-		resp.SetStatus(http.StatusInternalServerError).
-			SetMessage(messageError).
-			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-			Send(c)
-		c.AbortWithStatus(http.StatusInternalServerError)
+		errResp := utils.PrintErrorResponse(resp, err, messageError)
+		errResp.Send(c)
+		c.AbortWithStatus(utils.GetSafeStatusCode(errResp.StatusCode))
 		return
 	}
 	token := token.NewJwtTokenService(repositories.NewUserRepository())
 	user, err := token.ValidateToken(tokenString)
 	if err != nil {
-		if httpErr, ok := err.(*errs.HTTPError); ok {
-			resp.SetStatus(httpErr.StatusCode).
-				SetMessage(messageError).
-				SetError(httpErr.Message).
-				Send(c)
-			c.AbortWithStatus(httpErr.StatusCode)
-			return
-		}
-		resp.SetStatus(http.StatusInternalServerError).
-			SetMessage(messageError).
-			SetError(utils.GetSafeErrorMessage(err, "Unknown error occurred")).
-			Send(c)
-		c.AbortWithStatus(http.StatusInternalServerError)
+		errResp := utils.PrintErrorResponse(resp, err, messageError)
+		errResp.Send(c)
+		c.AbortWithStatus(utils.GetSafeStatusCode(errResp.StatusCode))
 		return
 	}
 

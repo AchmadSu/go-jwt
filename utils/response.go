@@ -63,3 +63,10 @@ func GetSafeErrorMessage(err error, fallback string) string {
 	}
 	return err.Error()
 }
+
+func GetSafeStatusCode(statusCode int) int {
+	if statusCode >= 200 && statusCode <= 503 {
+		return statusCode
+	}
+	return http.StatusInternalServerError
+}

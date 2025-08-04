@@ -20,7 +20,6 @@ func Paginate[T any](
 ) (*dto.PaginationResponse[T], error) {
 	page, pageErr := strconv.Atoi(request.Page)
 	limit, limitErr := strconv.Atoi(request.Limit)
-
 	if page < 1 || pageErr != nil {
 		page = 1
 	}
@@ -34,7 +33,7 @@ func Paginate[T any](
 	}
 
 	var orConditions []string
-	var args []interface{}
+	var args []any
 
 	if request.Search != "" && len(searchFields) > 0 {
 		searchTerm := "%" + request.Search + "%"

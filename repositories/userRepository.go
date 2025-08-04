@@ -35,15 +35,16 @@ func (r *userRepository) FindByEmail(email string) (models.User, *gorm.DB) {
 
 func (r *userRepository) FindAll(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error) {
 	query := initializers.DB.Model(&models.User{}).
-		Select("id, email", "created_at", "updated_at")
-	allowedSortFields := []string{"id", "email", "created_at"}
-	searchFields := []string{"email"}
+		Select("id, name, email", "created_at", "updated_at")
+	allowedSortFields := []string{"id", "name", "email", "created_at"}
+	searchFields := []string{"name", "email"}
 	defaultOrder := "created_at desc"
 	return utils.Paginate[dto.PublicUser](request, query, allowedSortFields, defaultOrder, searchFields)
 }
 
 func (r *userRepository) Create(input *dto.CreateUserInput) (dto.PublicUser, error) {
 	user := models.User{
+		Name:     input.Name,
 		Email:    input.Email,
 		Password: input.Password,
 	}
