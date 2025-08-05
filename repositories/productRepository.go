@@ -13,7 +13,7 @@ type ProductRepository interface {
 	FindByID(id int) (models.Product, *gorm.DB)
 	FindByCode(code string) (models.Product, *gorm.DB)
 	FindByName(name string) (models.Product, *gorm.DB)
-	FindAll(paginate *dto.PaginationRequest, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error)
+	FindAll(paginate *dto.PaginationRequest, isActive int, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error)
 	Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error)
 	Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error)
 }
@@ -60,7 +60,7 @@ func (r *productRepository) FindByName(name string) (models.Product, *gorm.DB) {
 	return productWithUser, result
 }
 
-func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error) {
+func (r *productRepository) FindAll(request *dto.PaginationRequest, isActive int, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error) {
 	query := initializers.DB.Model(&models.Product{}).
 		Joins("LEFT JOIN users AS creator ON creator.id = products.created_by").
 		Joins("LEFT JOIN users AS modifier ON modifier.id = products.modified_by").
@@ -68,7 +68,7 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId ui
 			"products.id AS id",
 			"products.code",
 			"products.name AS name",
-			"products.desc AS description",
+			"products.desc AS desc",
 			"products.is_active",
 			"products.created_by AS creator_id",
 			"products.modified_by AS modifier_id",
@@ -77,9 +77,13 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId ui
 			"creator.name AS creator_name",
 			"modifier.name AS modifier_name",
 		})
+	if isActive == 0 || isActive == 1 {
+		query = query.Where("products.is_active = ?", isActive)
+	}
 	if creatorId > 0 {
 		query = query.Where("products.created_by = ?", creatorId)
-	} else if modifierId > 0 {
+	}
+	if modifierId > 0 {
 		query = query.Where("products.modified_by = ?", modifierId)
 	}
 	allowedSortFields := []string{
@@ -96,7 +100,6 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId ui
 		`products.name`,
 		`products.code`,
 		`products.desc`,
-		`products.is_active`,
 		`creator.name`,
 		`modifier.name`,
 	}
@@ -146,7 +149,14 @@ func (r *productRepository) Create(input *dto.CreateProductInput, creatorId uint
 
 func (r *productRepository) Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error) {
 	var product models.Product
+	trx := initializers.DB.Begin()
+	if trx.Error != nil {
+		trx.Rollback()
+		return dto.PublicProduct{}, trx.Error
+	}
+
 	if err := initializers.DB.First(&product, id).Error; err != nil {
+		trx.Rollback()
 		return dto.PublicProduct{}, err
 	}
 
@@ -169,6 +179,11 @@ func (r *productRepository) Update(id int, input *dto.UpdateProductInput, modifi
 	product.ModifiedBy = &modifierId
 
 	if err := initializers.DB.Save(&product).Error; err != nil {
+		trx.Rollback()
+		return dto.PublicProduct{}, err
+	}
+
+	if err := trx.Commit().Error; err != nil {
 		return dto.PublicProduct{}, err
 	}
 

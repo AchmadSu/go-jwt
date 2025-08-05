@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -65,6 +64,15 @@ func (s *productService) GetProduct(data map[string]string) (dto.PublicProduct, 
 func (s *productService) GetAllProducts(request *dto.PaginationRequest, data map[string]string) (*dto.PaginationResponse[dto.PublicProduct], error) {
 	var creatorId uint
 	var modifierId uint
+	var statusProduct int
+	switch data["is_active"] {
+	case "true":
+		statusProduct = 1
+	case "false":
+		statusProduct = 0
+	default:
+		statusProduct = 2
+	}
 	uIntMap := make(map[string]uint)
 	for key, strVal := range data {
 		if key == "creator_id" || key == "modifier_id" {
@@ -82,7 +90,7 @@ func (s *productService) GetAllProducts(request *dto.PaginationRequest, data map
 		modifierId = uIntMap["modifier_id"]
 	}
 
-	pg, err := s.repo.FindAll(request, creatorId, modifierId)
+	pg, err := s.repo.FindAll(request, statusProduct, creatorId, modifierId)
 	if err != nil {
 		return nil, err
 	}
@@ -118,24 +126,16 @@ func (s *productService) Update(id int, ctx context.Context, input *dto.UpdatePr
 		return dto.PublicProduct{}, errs.New("invalid context session user ID", http.StatusBadRequest)
 	}
 
-	if input.Code == "" && input.Name == "" && input.Desc == "" && (input.IsActive < 0 && input.IsActive > 1) {
-		return dto.PublicProduct{}, errs.New("content must have at least one field", http.StatusBadRequest)
-	}
-
 	mapValidator := map[string]string{
 		"code":      input.Code,
 		"name":      input.Name,
 		"is_active": strconv.Itoa(input.IsActive),
 	}
 
-	fmt.Println("Map contents:")
-	for key, value := range mapValidator {
-		fmt.Printf("Key: %s, Value: %s\n", key, value)
-	}
-
 	isValid, err := s.validator.ValidateInsertProduct(mapValidator)
 	if !isValid {
 		return dto.PublicProduct{}, err
 	}
+
 	return s.repo.Update(id, input, modifierId)
 }

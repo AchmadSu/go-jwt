@@ -69,6 +69,7 @@ func GetProducts(c *gin.Context) {
 	id := c.Query("id")
 	name := c.Query("name")
 	code := c.Query("code")
+	isActive := c.Query("is_active")
 	creatorId := c.Query("creator_id")
 	modifierId := c.Query("modifier_id")
 	resp := utils.NewResponse()
@@ -77,6 +78,7 @@ func GetProducts(c *gin.Context) {
 		"id":          id,
 		"name":        name,
 		"code":        code,
+		"is_active":   isActive,
 		"creator_id":  creatorId,
 		"modifier_id": modifierId,
 	}
