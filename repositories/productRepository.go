@@ -11,10 +11,8 @@ import (
 type ProductRepository interface {
 	FindByID(id int) (models.Product, *gorm.DB)
 	FindByCode(code string) (models.Product, *gorm.DB)
-	FindByName(namr string) (models.Product, *gorm.DB)
-	FindByCreator(userId uint) (models.Product, *gorm.DB)
-	FindByModifier(userId uint) (models.Product, *gorm.DB)
-	FindAll(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error)
+	FindByName(name string) (models.Product, *gorm.DB)
+	FindAll(paginate *dto.PaginationRequest, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error)
 	Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error)
 }
 
@@ -42,19 +40,7 @@ func (r *productRepository) FindByName(name string) (models.Product, *gorm.DB) {
 	return product, result
 }
 
-func (r *productRepository) FindByCreator(userId uint) (models.Product, *gorm.DB) {
-	var product models.Product
-	result := initializers.DB.Find(&product, "created_by = ?", userId)
-	return product, result
-}
-
-func (r *productRepository) FindByModifier(userId uint) (models.Product, *gorm.DB) {
-	var product models.Product
-	result := initializers.DB.Find(&product, "modified_by = ?", userId)
-	return product, result
-}
-
-func (r *productRepository) FindAll(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error) {
+func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error) {
 	query := initializers.DB.Model(&models.Product{}).
 		Joins("LEFT JOIN users AS creator ON creator.id = products.created_by").
 		Joins("LEFT JOIN users AS modifier ON modifier.id = products.modified_by").
@@ -70,6 +56,11 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest) (*dto.Pagina
 			"creator.name AS creator_name",
 			"modifier.name AS modifer_name",
 		})
+	if creatorId > 0 {
+		query = query.Where("products.created_by = ?", creatorId)
+	} else if modifierId > 0 {
+		query = query.Where("products.modified_by = ?", modifierId)
+	}
 	allowedSortFields := []string{
 		`id`,
 		`name`,

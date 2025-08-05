@@ -14,8 +14,8 @@ import (
 )
 
 type ProductService interface {
-	GetProduct(id, code string) (dto.PublicProduct, error)
-	GetAllProducts(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error)
+	GetProduct(data map[string]string) (dto.PublicProduct, error)
+	GetAllProducts(paginate *dto.PaginationRequest, data map[string]string) (*dto.PaginationResponse[dto.PublicProduct], error)
 	Create(ctx context.Context, input *dto.CreateProductInput) (dto.PublicProduct, error)
 }
 
@@ -31,20 +31,24 @@ func NewProductService(
 	return &productService{repo: repo, validator: validator}
 }
 
-func (s *productService) GetProduct(id, code string) (dto.PublicProduct, error) {
+func (s *productService) GetProduct(data map[string]string) (dto.PublicProduct, error) {
 	var publicProduct dto.PublicProduct
 	var errResult error
 
-	if id != "" {
-		parsedID, err := strconv.Atoi(id)
+	if data["id"] != "" {
+		parsedID, err := strconv.Atoi(data["id"])
 		if err != nil {
 			return dto.PublicProduct{}, errs.New("Product ID is not a number!", http.StatusBadRequest)
 		}
 		product, result := s.repo.FindByID(parsedID)
 		publicProduct = utils.ToPublicProduct(product)
 		errResult = result.Error
+	} else if data["name"] != "" {
+		product, result := s.repo.FindByName(data["name"])
+		publicProduct = utils.ToPublicProduct(product)
+		errResult = result.Error
 	} else {
-		product, result := s.repo.FindByCode(code)
+		product, result := s.repo.FindByCode(data["code"])
 		publicProduct = utils.ToPublicProduct(product)
 		errResult = result.Error
 	}
@@ -56,8 +60,27 @@ func (s *productService) GetProduct(id, code string) (dto.PublicProduct, error) 
 	return publicProduct, errResult
 }
 
-func (s *productService) GetAllProducts(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error) {
-	pg, err := s.repo.FindAll(request)
+func (s *productService) GetAllProducts(request *dto.PaginationRequest, data map[string]string) (*dto.PaginationResponse[dto.PublicProduct], error) {
+	var creatorId uint
+	var modifierId uint
+	uIntMap := make(map[string]uint)
+	for key, strVal := range data {
+		if key == "creator_id" || key == "modifier_id" {
+			parsedUint64, err := strconv.ParseUint(strVal, 10, 64)
+			if err != nil {
+				parsedUint64 = 0
+			}
+			uIntMap[key] = uint(parsedUint64)
+		}
+	}
+	if uIntMap["creator_id"] > 0 {
+		creatorId = uIntMap["creator_id"]
+	}
+	if uIntMap["modifier_id"] > 0 {
+		modifierId = uIntMap["modifier_id"]
+	}
+
+	pg, err := s.repo.FindAll(request, creatorId, modifierId)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +89,7 @@ func (s *productService) GetAllProducts(request *dto.PaginationRequest) (*dto.Pa
 		return nil, errs.New("Products not found", http.StatusNotFound)
 	}
 
-	return pg, err
+	return pg, nil
 }
 
 func (s *productService) Create(ctx context.Context, input *dto.CreateProductInput) (dto.PublicProduct, error) {

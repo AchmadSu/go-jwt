@@ -36,17 +36,27 @@ func CreateProduct(c *gin.Context) {
 func GetProducts(c *gin.Context) {
 	id := c.Query("id")
 	name := c.Query("name")
+	code := c.Query("code")
+	creatorId := c.Query("creator_id")
+	modifierId := c.Query("modifier_id")
 	resp := utils.NewResponse()
 	message := "Failed to fetch product data"
+	objectData := map[string]string{
+		"id":          id,
+		"name":        name,
+		"code":        code,
+		"creator_id":  creatorId,
+		"modifier_id": modifierId,
+	}
 
-	if name != "" || id != "" {
-		product, err := bootstrap.ProductService.GetProduct(id, name)
+	if name != "" || id != "" || code != "" {
+		product, err := bootstrap.ProductService.GetProduct(objectData)
 		if err != nil {
 			errResp := utils.PrintErrorResponse(resp, err, message)
 			errResp.Send(c)
 			return
 		}
-		message = "Get product by ID or Code successfully"
+		message = "Get product by parameter query successfully"
 		resp.SetMessage(message).
 			SetPayload(product).
 			Send(c)
@@ -61,7 +71,7 @@ func GetProducts(c *gin.Context) {
 		return
 	}
 
-	pg, err := bootstrap.ProductService.GetAllProducts(&pagination)
+	pg, err := bootstrap.ProductService.GetAllProducts(&pagination, objectData)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
