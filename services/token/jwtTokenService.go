@@ -42,14 +42,7 @@ func (j *jwtTokenService) CreateToken(sub int) (string, int, error) {
 }
 
 func (j *jwtTokenService) ValidateToken(tokenString string) (models.User, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			alg, _ := token.Header["alg"].(string)
-			errorMessage := "Unexpected signing method: " + alg
-			return nil, errs.New(errorMessage, http.StatusUnauthorized)
-		}
-		return []byte(os.Getenv("SECRET_API_KEY")), nil
-	})
+	token, err := parsingToken(tokenString)
 	if err != nil {
 		return models.User{}, errs.New(utils.GetSafeErrorMessage(err, "Invalid Token Format"), http.StatusUnauthorized)
 	}
@@ -87,15 +80,8 @@ func (j *jwtTokenService) ValidateToken(tokenString string) (models.User, error)
 }
 
 func (j *jwtTokenService) BlacklistToken(tokenString string) error {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			alg, _ := token.Header["alg"].(string)
-			errorMessage := "Unexpected signing method: " + alg
-			return nil, errs.New(errorMessage, http.StatusUnauthorized)
-		}
-		return []byte(os.Getenv("SECRET_API_KEY")), nil
-	})
 
+	token, err := parsingToken(tokenString)
 	if err != nil {
 		return errs.New(utils.GetSafeErrorMessage(err, "Invalid Token Format"), http.StatusUnauthorized)
 	}
@@ -116,4 +102,29 @@ func (j *jwtTokenService) BlacklistToken(tokenString string) error {
 	}
 
 	return nil
+}
+
+func (j *jwtTokenService) GetSubFromToken(tokenString string) (int, error) {
+	user, err := j.ValidateToken(tokenString)
+	if err != nil {
+		var statusCode int
+		if httpErr, ok := err.(*errs.HTTPError); ok {
+			statusCode = httpErr.StatusCode
+		}
+		return 0, errs.New(utils.GetSafeErrorMessage(err, "Unknown Token Error"), utils.GetSafeStatusCode(statusCode))
+	}
+	return int(user.ID), nil
+}
+
+func parsingToken(tokenString string) (*jwt.Token, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			alg, _ := token.Header["alg"].(string)
+			errorMessage := "Unexpected signing method: " + alg
+			return nil, errs.New(errorMessage, http.StatusUnauthorized)
+		}
+		return []byte(os.Getenv("SECRET_API_KEY")), nil
+	})
+
+	return token, err
 }

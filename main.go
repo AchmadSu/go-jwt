@@ -12,6 +12,7 @@ func init() {
 	initializers.ConnectToDb()
 	initializers.SyncDatabase()
 	bootstrap.InitUserService()
+	bootstrap.InitProductService()
 }
 
 func main() {

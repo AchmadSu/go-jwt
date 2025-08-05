@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"context"
+
+	"example.com/m/config"
 	"example.com/m/helpers"
 	"example.com/m/repositories"
 	"example.com/m/services/token"
@@ -28,6 +31,9 @@ func RequireAuth(c *gin.Context) {
 		return
 	}
 
-	c.Set("user", utils.ToPublicUser(user))
+	publicUser := utils.ToPublicUser(user)
+	ctx := context.WithValue(c.Request.Context(), config.UserIDKey, user.ID)
+	c.Request = c.Request.WithContext(ctx)
+	c.Set("user", publicUser)
 	c.Next()
 }

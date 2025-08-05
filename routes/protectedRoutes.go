@@ -13,5 +13,7 @@ func RegisterProtectedRoutes(r *gin.Engine) {
 		//users
 		protected.GET("/users", controllers.GetUsers)
 		protected.POST("/logout", controllers.Logout)
+		protected.GET("/products", controllers.GetProducts)
+		protected.POST("/products", controllers.CreateProduct)
 	}
 }
