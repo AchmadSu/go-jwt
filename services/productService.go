@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -17,6 +18,7 @@ type ProductService interface {
 	GetProduct(data map[string]string) (dto.PublicProduct, error)
 	GetAllProducts(paginate *dto.PaginationRequest, data map[string]string) (*dto.PaginationResponse[dto.PublicProduct], error)
 	Create(ctx context.Context, input *dto.CreateProductInput) (dto.PublicProduct, error)
+	Update(id int, ctx context.Context, input *dto.UpdateProductInput) (dto.PublicProduct, error)
 }
 
 type productService struct {
@@ -98,9 +100,42 @@ func (s *productService) Create(ctx context.Context, input *dto.CreateProductInp
 		return dto.PublicProduct{}, errs.New("invalid context session user ID", http.StatusInternalServerError)
 	}
 
-	isValid, err := s.validator.ValidateInsertProduct(input)
+	mapValidator := map[string]string{
+		"code": input.Code,
+		"name": input.Name,
+	}
+
+	isValid, err := s.validator.ValidateInsertProduct(mapValidator)
 	if !isValid {
 		return dto.PublicProduct{}, err
 	}
 	return s.repo.Create(input, creatorId)
+}
+
+func (s *productService) Update(id int, ctx context.Context, input *dto.UpdateProductInput) (dto.PublicProduct, error) {
+	modifierId, ok := ctx.Value(config.UserIDKey).(uint)
+	if !ok {
+		return dto.PublicProduct{}, errs.New("invalid context session user ID", http.StatusBadRequest)
+	}
+
+	if input.Code == "" && input.Name == "" && input.Desc == "" && (input.IsActive < 0 && input.IsActive > 1) {
+		return dto.PublicProduct{}, errs.New("content must have at least one field", http.StatusBadRequest)
+	}
+
+	mapValidator := map[string]string{
+		"code":      input.Code,
+		"name":      input.Name,
+		"is_active": strconv.Itoa(input.IsActive),
+	}
+
+	fmt.Println("Map contents:")
+	for key, value := range mapValidator {
+		fmt.Printf("Key: %s, Value: %s\n", key, value)
+	}
+
+	isValid, err := s.validator.ValidateInsertProduct(mapValidator)
+	if !isValid {
+		return dto.PublicProduct{}, err
+	}
+	return s.repo.Update(id, input, modifierId)
 }

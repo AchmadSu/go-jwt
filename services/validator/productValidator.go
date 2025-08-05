@@ -1,15 +1,16 @@
 package validator
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 
-	"example.com/m/dto"
 	"example.com/m/errs"
 	"example.com/m/repositories"
 )
 
 type ProductValidatorService interface {
-	ValidateInsertProduct(input *dto.CreateProductInput) (bool, error)
+	ValidateInsertProduct(input map[string]string) (bool, error)
 	// ValidateUserLogin(input *dto.LoginUserInput) (dto.PublicUser, error)
 }
 
@@ -21,15 +22,23 @@ func NewProductValidatorService(repo repositories.ProductRepository) *productVal
 	return &productValidatorService{productRepo: repo}
 }
 
-func (v *productValidatorService) ValidateInsertProduct(input *dto.CreateProductInput) (bool, error) {
-	_, result := v.productRepo.FindByCode(input.Code)
+func (v *productValidatorService) ValidateInsertProduct(input map[string]string) (bool, error) {
+	_, result := v.productRepo.FindByCode(input["code"])
 	if result.RowsAffected > 0 {
 		return false, errs.New("Code is already exists. Please try another code!", http.StatusBadRequest)
 	}
 
-	_, result = v.productRepo.FindByName(input.Name)
+	_, result = v.productRepo.FindByName(input["name"])
 	if result.RowsAffected > 0 {
 		return false, errs.New("Name is already exists. Please try another name!", http.StatusBadRequest)
+	}
+
+	fmt.Println("[DEBUG]is_active: " + input["is_active"])
+	if input["is_active"] != "" {
+		parsedIsActive, err := strconv.Atoi(input["is_active"])
+		if err != nil || (parsedIsActive != 0 && parsedIsActive != 1) {
+			return false, errs.New("Status must contain 1 or 0", http.StatusBadRequest)
+		}
 	}
 
 	return true, nil

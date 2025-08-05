@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"example.com/m/dto"
+	"example.com/m/helpers"
 	"example.com/m/initializers"
 	"example.com/m/models"
 	"example.com/m/utils"
@@ -14,6 +15,7 @@ type ProductRepository interface {
 	FindByName(name string) (models.Product, *gorm.DB)
 	FindAll(paginate *dto.PaginationRequest, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error)
 	Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error)
+	Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error)
 }
 
 type productRepository struct{}
@@ -25,19 +27,37 @@ func NewProductRepository() ProductRepository {
 func (r *productRepository) FindByID(id int) (models.Product, *gorm.DB) {
 	var product models.Product
 	result := initializers.DB.First(&product, "id = ?", id)
-	return product, result
+	var productWithUser models.Product
+	err := helpers.PreloadRelationByID(&productWithUser, product.ID, []string{"Creator", "Modifier"})
+	if err != nil {
+		return models.Product{}, &gorm.DB{Error: err}
+	}
+
+	return productWithUser, result
 }
 
 func (r *productRepository) FindByCode(code string) (models.Product, *gorm.DB) {
 	var product models.Product
 	result := initializers.DB.First(&product, "code = ?", code)
-	return product, result
+	var productWithUser models.Product
+	err := helpers.PreloadRelationByID(&productWithUser, product.ID, []string{"Creator", "Modifier"})
+	if err != nil {
+		return models.Product{}, &gorm.DB{Error: err}
+	}
+
+	return productWithUser, result
 }
 
 func (r *productRepository) FindByName(name string) (models.Product, *gorm.DB) {
 	var product models.Product
 	result := initializers.DB.First(&product, "name = ?", name)
-	return product, result
+	var productWithUser models.Product
+	err := helpers.PreloadRelationByID(&productWithUser, product.ID, []string{"Creator", "Modifier"})
+	if err != nil {
+		return models.Product{}, &gorm.DB{Error: err}
+	}
+
+	return productWithUser, result
 }
 
 func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error) {
@@ -49,12 +69,13 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId ui
 			"products.code",
 			"products.name AS name",
 			"products.desc AS description",
+			"products.is_active",
 			"products.created_by AS creator_id",
 			"products.modified_by AS modifier_id",
 			"products.created_at",
 			"products.updated_at",
 			"creator.name AS creator_name",
-			"modifier.name AS modifer_name",
+			"modifier.name AS modifier_name",
 		})
 	if creatorId > 0 {
 		query = query.Where("products.created_by = ?", creatorId)
@@ -65,6 +86,7 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId ui
 		`id`,
 		`name`,
 		`code`,
+		`is_active`,
 		`creator_name`,
 		`modifier_name`,
 		`created_at`,
@@ -74,11 +96,31 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, creatorId ui
 		`products.name`,
 		`products.code`,
 		`products.desc`,
+		`products.is_active`,
 		`creator.name`,
 		`modifier.name`,
 	}
 	defaultOrder := "products.name asc"
-	return utils.Paginate[dto.PublicProduct](request, query, allowedSortFields, defaultOrder, searchFields)
+	pageResult, err := utils.Paginate[dto.PublicProduct](request, query, allowedSortFields, defaultOrder, searchFields)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range pageResult.Data {
+		switch pageResult.Data[i].IsActive {
+		case 0:
+			pageResult.Data[i].Status = "Inactive"
+		case 1:
+			pageResult.Data[i].Status = "Active"
+		case 2:
+			pageResult.Data[i].Status = "Draft"
+		default:
+			pageResult.Data[i].Status = "Unknown"
+		}
+	}
+
+	return pageResult, nil
 }
 
 func (r *productRepository) Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error) {
@@ -94,10 +136,44 @@ func (r *productRepository) Create(input *dto.CreateProductInput, creatorId uint
 	}
 
 	var productWithUser models.Product
-	err := initializers.DB.
-		Preload("Creator").
-		Preload("Modifier").
-		First(&productWithUser, product.ID).Error
+	err := helpers.PreloadRelationByID(&productWithUser, product.ID, []string{"Creator", "Modifier"})
+	if err != nil {
+		return dto.PublicProduct{}, err
+	}
+
+	return utils.ToPublicProduct(productWithUser), nil
+}
+
+func (r *productRepository) Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error) {
+	var product models.Product
+	if err := initializers.DB.First(&product, id).Error; err != nil {
+		return dto.PublicProduct{}, err
+	}
+
+	if input.Code != "" {
+		product.Code = input.Code
+	}
+
+	if input.Name != "" {
+		product.Name = input.Name
+	}
+
+	if input.Desc != "" {
+		product.Desc = input.Desc
+	}
+
+	if input.IsActive == 0 || input.IsActive == 1 {
+		product.IsActive = models.ProductStatus(input.IsActive)
+	}
+
+	product.ModifiedBy = &modifierId
+
+	if err := initializers.DB.Save(&product).Error; err != nil {
+		return dto.PublicProduct{}, err
+	}
+
+	var productWithUser models.Product
+	err := helpers.PreloadRelationByID(&productWithUser, product.ID, []string{"Creator", "Modifier"})
 	if err != nil {
 		return dto.PublicProduct{}, err
 	}

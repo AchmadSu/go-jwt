@@ -10,10 +10,12 @@ func RegisterProtectedRoutes(r *gin.Engine) {
 	protected := r.Group("/")
 	protected.Use(middleware.RequireAuth)
 	{
-		//users
+		// users
 		protected.GET("/users", controllers.GetUsers)
 		protected.POST("/logout", controllers.Logout)
+		// products
 		protected.GET("/products", controllers.GetProducts)
 		protected.POST("/products", controllers.CreateProduct)
+		protected.PUT("/products", controllers.UpdateProduct)
 	}
 }

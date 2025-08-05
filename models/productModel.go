@@ -14,6 +14,17 @@ func (Product) TableName() string {
 	return "products"
 }
 
+func (ps ProductStatus) String() string {
+	switch ps {
+	case Active:
+		return "Active"
+	case Draft:
+		return "Draft"
+	default:
+		return "Inactive"
+	}
+}
+
 type Product struct {
 	gorm.Model
 	Code       string        `gorm:"unique;size:20;not null"`

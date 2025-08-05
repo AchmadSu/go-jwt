@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"example.com/m/bootstrap"
 	"example.com/m/dto"
@@ -33,6 +34,37 @@ func CreateProduct(c *gin.Context) {
 		Send(c)
 }
 
+func UpdateProduct(c *gin.Context) {
+	var input dto.UpdateProductInput
+	resp := utils.NewResponse()
+	id := c.Query("id")
+	parsedID, err := strconv.Atoi(id)
+	message := "Failed to create product"
+	if c.Bind(&input) != nil {
+		err := errs.New("Body request invalid", http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
+		return
+	}
+	if err != nil {
+		err := errs.New("product ID is not a number", http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
+		return
+	}
+	product, err := bootstrap.ProductService.Update(parsedID, c.Request.Context(), &input)
+	if err != nil {
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
+		return
+	}
+	message = "Product has updated successfully"
+	resp.SetStatus(http.StatusOK).
+		SetMessage(message).
+		SetPayload(product).
+		Send(c)
+}
+
 func GetProducts(c *gin.Context) {
 	id := c.Query("id")
 	name := c.Query("name")
@@ -41,7 +73,7 @@ func GetProducts(c *gin.Context) {
 	modifierId := c.Query("modifier_id")
 	resp := utils.NewResponse()
 	message := "Failed to fetch product data"
-	objectData := map[string]string{
+	mapData := map[string]string{
 		"id":          id,
 		"name":        name,
 		"code":        code,
@@ -50,7 +82,7 @@ func GetProducts(c *gin.Context) {
 	}
 
 	if name != "" || id != "" || code != "" {
-		product, err := bootstrap.ProductService.GetProduct(objectData)
+		product, err := bootstrap.ProductService.GetProduct(mapData)
 		if err != nil {
 			errResp := utils.PrintErrorResponse(resp, err, message)
 			errResp.Send(c)
@@ -71,7 +103,7 @@ func GetProducts(c *gin.Context) {
 		return
 	}
 
-	pg, err := bootstrap.ProductService.GetAllProducts(&pagination, objectData)
+	pg, err := bootstrap.ProductService.GetAllProducts(&pagination, mapData)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
