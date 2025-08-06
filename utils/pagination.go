@@ -24,7 +24,7 @@ func Paginate[T any](
 		page = 1
 	}
 
-	if limit < 1 || limitErr != nil {
+	if limit < 10 || limitErr != nil {
 		limit = 10
 	}
 

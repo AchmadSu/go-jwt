@@ -110,18 +110,13 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, isActive int
 		return nil, err
 	}
 
-	for i := range pageResult.Data {
-		switch pageResult.Data[i].IsActive {
-		case 0:
-			pageResult.Data[i].Status = "Inactive"
-		case 1:
-			pageResult.Data[i].Status = "Active"
-		case 2:
-			pageResult.Data[i].Status = "Draft"
-		default:
-			pageResult.Data[i].Status = "Unknown"
-		}
-	}
+	helpers.SetEntityStatusLabel(pageResult.Data,
+		func(item *dto.PublicProduct) int {
+			return int(item.IsActive)
+		},
+		func(item *dto.PublicProduct, label string) {
+			item.Status = label
+		})
 
 	return pageResult, nil
 }
