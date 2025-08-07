@@ -1,20 +1,16 @@
 package helpers
 
-type Status int
+import "example.com/m/config"
 
-const (
-	StatusInactive Status = 0
-	StatusActive   Status = 1
-	StatusDraft    Status = 2
-)
+type Status int
 
 func GetEntityStatusLabel(status Status) string {
 	switch status {
-	case StatusInactive:
+	case config.Inactive:
 		return "Inactive"
-	case StatusActive:
+	case config.Active:
 		return "Active"
-	case StatusDraft:
+	case config.Draft:
 		return "Draft"
 	default:
 		return "Unknown"
@@ -35,3 +31,18 @@ func SetEntityStatusLabel[T any](
 
 	return data
 }
+
+// func GetEntityStatus(data string) int {
+// 	var status int
+// 	switch data {
+// 	case "true":
+// 		status = 1
+// 	case "false":
+// 		status = 0
+// 	case "draft":
+// 		status = 2
+// 	default:
+// 		status = 3
+// 	}
+// 	return status
+// }

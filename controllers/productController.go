@@ -66,25 +66,11 @@ func UpdateProduct(c *gin.Context) {
 }
 
 func GetProducts(c *gin.Context) {
-	id := c.Query("id")
-	name := c.Query("name")
-	code := c.Query("code")
-	isActive := c.Query("is_active")
-	creatorId := c.Query("creator_id")
-	modifierId := c.Query("modifier_id")
+	var pagination dto.PaginationRequest
 	resp := utils.NewResponse()
-	message := "Failed to fetch product data"
-	mapData := map[string]string{
-		"id":          id,
-		"name":        name,
-		"code":        code,
-		"is_active":   isActive,
-		"creator_id":  creatorId,
-		"modifier_id": modifierId,
-	}
-
-	if name != "" || id != "" || code != "" {
-		product, err := bootstrap.ProductService.GetProduct(mapData)
+	message := "Failed to get product"
+	if pagination.Name != "" || pagination.ID != nil || pagination.Code != "" {
+		product, err := bootstrap.ProductService.GetProduct(&pagination)
 		if err != nil {
 			errResp := utils.PrintErrorResponse(resp, err, message)
 			errResp.Send(c)
@@ -97,7 +83,6 @@ func GetProducts(c *gin.Context) {
 		return
 	}
 
-	var pagination dto.PaginationRequest
 	if err := c.ShouldBindQuery(&pagination); err != nil {
 		err = errs.New(utils.GetSafeErrorMessage(err, "Body request pagination invalid"), http.StatusBadRequest)
 		errResp := utils.PrintErrorResponse(resp, err, message)
@@ -105,7 +90,7 @@ func GetProducts(c *gin.Context) {
 		return
 	}
 
-	pg, err := bootstrap.ProductService.GetAllProducts(&pagination, mapData)
+	pg, err := bootstrap.ProductService.GetAllProducts(&pagination)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)

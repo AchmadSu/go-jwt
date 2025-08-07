@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log"
 	"net/http"
 
 	"example.com/m/dto"
@@ -22,20 +21,6 @@ func GetUserFromContext(c *gin.Context) (dto.PublicUser, error) {
 	return user, nil
 }
 
-func PrintErrorResponse(resp *Response, err error, message string) *Response {
-	log.Printf("[ERROR] %v", err)
-	if httpErr, ok := err.(*errs.HTTPError); ok {
-		resp.SetStatus(httpErr.StatusCode).
-			SetMessage(message).
-			SetError(httpErr.Message)
-		return resp
-	}
-	resp.SetStatus(http.StatusInternalServerError).
-		SetMessage(message).
-		SetError(GetSafeErrorMessage(err, "Unknown error occurred"))
-	return resp
-}
-
 func ContainsString(list []string, val string) bool {
 	for _, v := range list {
 		if v == val {
@@ -44,3 +29,53 @@ func ContainsString(list []string, val string) bool {
 	}
 	return false
 }
+
+// func SetParsedUintUsersRelation(data map[string]string) map[string]uint {
+// 	uIntMap := make(map[string]uint)
+// 	for key, strVal := range data {
+// 		if key == "creator_id" || key == "modifier_id" {
+// 			parsedUint64, err := strconv.ParseUint(strVal, 10, 64)
+// 			if err != nil {
+// 				parsedUint64 = 0
+// 			}
+// 			uIntMap[key] = uint(parsedUint64)
+// 		}
+// 	}
+// 	return uIntMap
+// }
+
+// func parseInt(val any, defaultVal int) int {
+// 	switch v := val.(type) {
+// 	case int:
+// 		return v
+// 	case int64:
+// 		return int(v)
+// 	case float64:
+// 		return int(v)
+// 	case string:
+// 		i, err := strconv.Atoi(v)
+// 		if err == nil {
+// 			return i
+// 		}
+// 	}
+// 	return defaultVal
+// }
+
+// func parseUint(val any) uint {
+// 	switch v := val.(type) {
+// 	case uint:
+// 		return v
+// 	case int:
+// 		return uint(v)
+// 	case int64:
+// 		return uint(v)
+// 	case float64:
+// 		return uint(v)
+// 	case string:
+// 		i, err := strconv.ParseUint(v, 10, 64)
+// 		if err == nil {
+// 			return uint(i)
+// 		}
+// 	}
+// 	return 0
+// }

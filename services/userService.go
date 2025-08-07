@@ -2,7 +2,6 @@ package services
 
 import (
 	"net/http"
-	"strconv"
 
 	"example.com/m/dto"
 	"example.com/m/errs"
@@ -14,7 +13,7 @@ import (
 )
 
 type UserService interface {
-	GetUser(id, email string) (dto.PublicUser, error)
+	GetUser(data *dto.PaginationRequest) (dto.PublicUser, error)
 	GetAllUsers(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error)
 	Register(input *dto.CreateUserInput) (dto.PublicUser, error)
 	Login(input *dto.LoginUserInput) dto.LoginResult
@@ -39,20 +38,16 @@ func NewUserService(
 	}
 }
 
-func (s *userService) GetUser(id, email string) (dto.PublicUser, error) {
+func (s *userService) GetUser(data *dto.PaginationRequest) (dto.PublicUser, error) {
 	var publicUser dto.PublicUser
 	var errResult error
 
-	if id != "" {
-		parsedID, err := strconv.Atoi(id)
-		if err != nil {
-			return dto.PublicUser{}, errs.New("User ID is not a number!", http.StatusBadRequest)
-		}
-		user, result := s.repo.FindByID(parsedID)
+	if *data.ID > 0 {
+		user, result := s.repo.FindByID(*data.ID)
 		publicUser = utils.ToPublicUser(user)
 		errResult = result.Error
 	} else {
-		user, result := s.repo.FindByEmail(email)
+		user, result := s.repo.FindByEmail(data.Email)
 		publicUser = utils.ToPublicUser(user)
 		errResult = result.Error
 	}
@@ -73,7 +68,7 @@ func (s *userService) GetAllUsers(request *dto.PaginationRequest) (*dto.Paginati
 	if len(pg.Data) == 0 {
 		return nil, errs.New("Users not found", http.StatusNotFound)
 	}
-	
+
 	return pg, err
 }
 

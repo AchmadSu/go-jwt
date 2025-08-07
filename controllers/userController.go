@@ -67,13 +67,19 @@ func Login(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	id := c.Query("id")
-	email := c.Query("email")
+	var pagination dto.PaginationRequest
 	resp := utils.NewResponse()
 	message := "Failed to fetch user data"
 
-	if email != "" || id != "" {
-		user, err := bootstrap.UserService.GetUser(id, email)
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		err = errs.New(utils.GetSafeErrorMessage(err, "Body request pagination invalid"), http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
+		return
+	}
+
+	if pagination.ID != nil || pagination.Email != "" {
+		user, err := bootstrap.UserService.GetUser(&pagination)
 		if err != nil {
 			errResp := utils.PrintErrorResponse(resp, err, message)
 			errResp.Send(c)
@@ -83,14 +89,6 @@ func GetUsers(c *gin.Context) {
 		resp.SetMessage(message).
 			SetPayload(user).
 			Send(c)
-		return
-	}
-
-	var pagination dto.PaginationRequest
-	if err := c.ShouldBindQuery(&pagination); err != nil {
-		err = errs.New(utils.GetSafeErrorMessage(err, "Body request pagination invalid"), http.StatusBadRequest)
-		errResp := utils.PrintErrorResponse(resp, err, message)
-		errResp.Send(c)
 		return
 	}
 

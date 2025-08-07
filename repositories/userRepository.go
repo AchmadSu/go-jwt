@@ -1,12 +1,15 @@
 package repositories
 
 import (
+	"example.com/m/config"
 	"example.com/m/dto"
 	"example.com/m/initializers"
 	"example.com/m/models"
 	"example.com/m/utils"
 	"gorm.io/gorm"
 )
+
+const UserTable config.TableName = "users"
 
 type UserRepository interface {
 	FindByID(id int) (models.User, *gorm.DB)
@@ -23,20 +26,21 @@ func NewUserRepository() UserRepository {
 
 func (r *userRepository) FindByID(id int) (models.User, *gorm.DB) {
 	var user models.User
-	result := initializers.DB.First(&user, "id = ?", id)
+	result := initializers.DB.First(&user, "id = ?", id).Debug()
 	return user, result
 }
 
 func (r *userRepository) FindByEmail(email string) (models.User, *gorm.DB) {
 	var user models.User
-	result := initializers.DB.Find(&user, "email = ?", email)
+	result := initializers.DB.Find(&user, "email = ?", email).Debug()
 	return user, result
 }
 
 func (r *userRepository) FindAll(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicUser], error) {
 	query := initializers.DB.Model(&models.User{}).
-		Select("id", "name", "email", "created_at", "updated_at")
-	allowedSortFields := []string{"id", "name", "email", "created_at"}
+		Select("id", "name", "email", "is_active", "created_at", "updated_at")
+	query = utils.FilterQuery(request, query, string(UserTable)).Debug()
+	allowedSortFields := []string{"id", "name", "email", "is_active", "created_at", "updated_at"}
 	searchFields := []string{"name", "email"}
 	defaultOrder := "created_at desc"
 	return utils.Paginate[dto.PublicUser](request, query, allowedSortFields, defaultOrder, searchFields)
@@ -49,6 +53,6 @@ func (r *userRepository) Create(input *dto.CreateUserInput) (dto.PublicUser, err
 		Password: input.Password,
 	}
 
-	result := initializers.DB.Create(&user)
+	result := initializers.DB.Create(&user).Debug()
 	return utils.ToPublicUser(user), result.Error
 }

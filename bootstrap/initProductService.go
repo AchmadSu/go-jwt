@@ -10,6 +10,6 @@ var ProductService services.ProductService
 
 func InitProductService() {
 	productRepo := repositories.NewProductRepository()
-	userValidator := validator.NewProductValidatorService(productRepo)
-	ProductService = services.NewProductService(productRepo, userValidator)
+	productValidator := validator.NewProductValidatorService(productRepo)
+	ProductService = services.NewProductService(productRepo, productValidator)
 }

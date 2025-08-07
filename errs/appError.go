@@ -1,5 +1,7 @@
 package errs
 
+import "strings"
+
 type HTTPError struct {
 	Message    string
 	StatusCode int
@@ -11,7 +13,7 @@ func (e *HTTPError) Error() string {
 
 func New(message string, code int) *HTTPError {
 	return &HTTPError{
-		Message:    message,
+		Message:    strings.ToLower(message),
 		StatusCode: code,
 	}
 }

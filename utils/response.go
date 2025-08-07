@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
 	"example.com/m/dto"
+	"example.com/m/errs"
 	"github.com/gin-gonic/gin"
 )
 
@@ -69,4 +71,18 @@ func GetSafeStatusCode(statusCode int) int {
 		return statusCode
 	}
 	return http.StatusInternalServerError
+}
+
+func PrintErrorResponse(resp *Response, err error, message string) *Response {
+	log.Printf("[ERROR] %v", err)
+	if httpErr, ok := err.(*errs.HTTPError); ok {
+		resp.SetStatus(httpErr.StatusCode).
+			SetMessage(message).
+			SetError(httpErr.Message)
+		return resp
+	}
+	resp.SetStatus(http.StatusInternalServerError).
+		SetMessage(message).
+		SetError(GetSafeErrorMessage(err, "Unknown error occurred"))
+	return resp
 }

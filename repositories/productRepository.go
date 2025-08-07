@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"example.com/m/config"
 	"example.com/m/dto"
 	"example.com/m/helpers"
 	"example.com/m/initializers"
@@ -9,11 +10,13 @@ import (
 	"gorm.io/gorm"
 )
 
+const ProductTable config.TableName = "products"
+
 type ProductRepository interface {
 	FindByID(id int) (models.Product, *gorm.DB)
 	FindByCode(code string) (models.Product, *gorm.DB)
 	FindByName(name string) (models.Product, *gorm.DB)
-	FindAll(paginate *dto.PaginationRequest, isActive int, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error)
+	FindAll(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error)
 	Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error)
 	Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error)
 }
@@ -60,7 +63,7 @@ func (r *productRepository) FindByName(name string) (models.Product, *gorm.DB) {
 	return productWithUser, result
 }
 
-func (r *productRepository) FindAll(request *dto.PaginationRequest, isActive int, creatorId uint, modifierId uint) (*dto.PaginationResponse[dto.PublicProduct], error) {
+func (r *productRepository) FindAll(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error) {
 	query := initializers.DB.Model(&models.Product{}).
 		Joins("LEFT JOIN users AS creator ON creator.id = products.created_by").
 		Joins("LEFT JOIN users AS modifier ON modifier.id = products.modified_by").
@@ -77,15 +80,9 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest, isActive int
 			"creator.name AS creator_name",
 			"modifier.name AS modifier_name",
 		})
-	if isActive == 0 || isActive == 1 {
-		query = query.Where("products.is_active = ?", isActive)
-	}
-	if creatorId > 0 {
-		query = query.Where("products.created_by = ?", creatorId)
-	}
-	if modifierId > 0 {
-		query = query.Where("products.modified_by = ?", modifierId)
-	}
+
+	query = utils.FilterQuery(request, query, string(ProductTable)).Debug()
+
 	allowedSortFields := []string{
 		`id`,
 		`name`,
@@ -167,7 +164,7 @@ func (r *productRepository) Update(id int, input *dto.UpdateProductInput, modifi
 		product.Desc = input.Desc
 	}
 
-	if input.IsActive == 0 || input.IsActive == 1 {
+	if input.IsActive == 0 || input.IsActive == 1 || input.IsActive == 2 {
 		product.IsActive = models.ProductStatus(input.IsActive)
 	}
 
