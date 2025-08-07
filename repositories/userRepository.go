@@ -3,6 +3,7 @@ package repositories
 import (
 	"example.com/m/config"
 	"example.com/m/dto"
+	"example.com/m/helpers"
 	"example.com/m/initializers"
 	"example.com/m/models"
 	"example.com/m/utils"
@@ -43,7 +44,18 @@ func (r *userRepository) FindAll(request *dto.PaginationRequest) (*dto.Paginatio
 	allowedSortFields := []string{"id", "name", "email", "is_active", "created_at", "updated_at"}
 	searchFields := []string{"name", "email"}
 	defaultOrder := "created_at desc"
-	return utils.Paginate[dto.PublicUser](request, query, allowedSortFields, defaultOrder, searchFields)
+	pageResult, err := utils.Paginate[dto.PublicUser](request, query, allowedSortFields, defaultOrder, searchFields)
+	if err != nil {
+		return nil, err
+	}
+	helpers.SetEntityStatusLabel(pageResult.Data,
+		func(item *dto.PublicUser) int {
+			return int(item.IsActive)
+		},
+		func(item *dto.PublicUser, label string) {
+			item.Status = label
+		})
+	return pageResult, nil
 }
 
 func (r *userRepository) Create(input *dto.CreateUserInput) (dto.PublicUser, error) {

@@ -110,9 +110,12 @@ func (s *productService) Update(id int, ctx context.Context, input *dto.UpdatePr
 	}
 
 	mapValidator := map[string]string{
-		"code":      input.Code,
-		"name":      input.Name,
-		"is_active": strconv.Itoa(input.IsActive),
+		"code": input.Code,
+		"name": input.Name,
+	}
+
+	if input.IsActive != nil {
+		mapValidator["is_active"] = strconv.Itoa(*input.IsActive)
 	}
 
 	isValid, err := s.validator.ValidateInsertProduct(mapValidator)

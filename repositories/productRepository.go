@@ -164,8 +164,8 @@ func (r *productRepository) Update(id int, input *dto.UpdateProductInput, modifi
 		product.Desc = input.Desc
 	}
 
-	if input.IsActive == 0 || input.IsActive == 1 || input.IsActive == 2 {
-		product.IsActive = models.ProductStatus(input.IsActive)
+	if input.IsActive != nil && (*input.IsActive == 0 || *input.IsActive == 1 || *input.IsActive == 2) {
+		product.IsActive = models.ProductStatus(*input.IsActive)
 	}
 
 	product.ModifiedBy = &modifierId

@@ -6,6 +6,7 @@ type PaginationRequest struct {
 	Code            string   `form:"code"`
 	Email           string   `form:"email"`
 	IsActive        *int     `form:"is_active"`
+	Status          string   `form:"status"`
 	CreatorId       *uint    `form:"creator_id"`
 	ModifierId      *uint    `form:"modifier_id"`
 	CreateDateStart string   `form:"create_date_start"`

@@ -42,7 +42,7 @@ func (s *userService) GetUser(data *dto.PaginationRequest) (dto.PublicUser, erro
 	var publicUser dto.PublicUser
 	var errResult error
 
-	if *data.ID > 0 {
+	if data.ID != nil && *data.ID > 0 {
 		user, result := s.repo.FindByID(*data.ID)
 		publicUser = utils.ToPublicUser(user)
 		errResult = result.Error

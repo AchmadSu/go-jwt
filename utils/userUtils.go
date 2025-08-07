@@ -8,7 +8,9 @@ import (
 func ToPublicUser(u models.User) dto.PublicUser {
 	return dto.PublicUser{
 		ID:        u.ID,
+		Name:      u.Name,
 		Email:     u.Email,
+		Status:    u.IsActive.String(),
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}

@@ -22,6 +22,6 @@ type User struct {
 	gorm.Model
 	Name     string
 	Email    string     `gorm:"unique"`
-	IsActive UserStatus `gorm:"type:int;default:1"`
+	IsActive UserStatus `gorm:"type:int;default:1"` // 1 = Active & 0 = Inactive
 	Password string
 }
