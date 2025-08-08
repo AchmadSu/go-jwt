@@ -11,6 +11,7 @@ func ToPublicProduct(p models.Product) dto.PublicProduct {
 		Code:         p.Code,
 		Name:         p.Name,
 		Desc:         p.Desc,
+		IsActive:     dto.ProductStatus(p.IsActive),
 		Status:       p.IsActive.String(),
 		CreatorId:    &p.Creator.ID,
 		CreatorName:  p.Creator.Name,

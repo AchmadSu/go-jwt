@@ -36,7 +36,7 @@ func (s *productService) GetProduct(data *dto.PaginationRequest) (dto.PublicProd
 	var publicProduct dto.PublicProduct
 	var errResult error
 
-	if *data.ID > 0 {
+	if data.ID != nil && *data.ID > 0 {
 		product, result := s.repo.FindByID(*data.ID)
 		publicProduct = utils.ToPublicProduct(product)
 		errResult = result.Error
@@ -67,7 +67,7 @@ func (s *productService) GetAllProducts(request *dto.PaginationRequest) (*dto.Pa
 	}
 
 	if request.UpdateDateStart != "" && request.UpdateDateEnd != "" {
-		err := utils.ValidateDateRange(request.CreateDateStart, request.CreateDateEnd)
+		err := utils.ValidateDateRange(request.UpdateDateStart, request.UpdateDateEnd)
 		if err != nil {
 			return nil, err
 		}

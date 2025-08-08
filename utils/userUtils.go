@@ -10,6 +10,7 @@ func ToPublicUser(u models.User) dto.PublicUser {
 		ID:        u.ID,
 		Name:      u.Name,
 		Email:     u.Email,
+		IsActive:  dto.UserStatus(u.IsActive),
 		Status:    u.IsActive.String(),
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,

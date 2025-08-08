@@ -68,7 +68,7 @@ func FilterQuery(param *dto.PaginationRequest, query *gorm.DB, mainTable string)
 	}
 
 	// Handle updated_at date range
-	if param.CreateDateStart != "" && param.CreateDateEnd != "" {
+	if param.UpdateDateStart != "" && param.UpdateDateEnd != "" {
 		dateMap := map[string]any{
 			"update_date_start": param.UpdateDateStart,
 			"update_date_end":   param.UpdateDateEnd,

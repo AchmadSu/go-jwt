@@ -69,6 +69,14 @@ func GetProducts(c *gin.Context) {
 	var pagination dto.PaginationRequest
 	resp := utils.NewResponse()
 	message := "Failed to get product"
+
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		err = errs.New(utils.GetSafeErrorMessage(err, "Body request pagination invalid"), http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
+		return
+	}
+
 	if pagination.Name != "" || pagination.ID != nil || pagination.Code != "" {
 		product, err := bootstrap.ProductService.GetProduct(&pagination)
 		if err != nil {
@@ -80,13 +88,6 @@ func GetProducts(c *gin.Context) {
 		resp.SetMessage(message).
 			SetPayload(product).
 			Send(c)
-		return
-	}
-
-	if err := c.ShouldBindQuery(&pagination); err != nil {
-		err = errs.New(utils.GetSafeErrorMessage(err, "Body request pagination invalid"), http.StatusBadRequest)
-		errResp := utils.PrintErrorResponse(resp, err, message)
-		errResp.Send(c)
 		return
 	}
 
