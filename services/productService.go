@@ -16,8 +16,8 @@ import (
 type ProductService interface {
 	GetProduct(data *dto.PaginationRequest) (dto.PublicProduct, error)
 	GetAllProducts(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error)
-	Create(ctx context.Context, input *dto.CreateProductInput) (dto.PublicProduct, error)
-	Update(id int, ctx context.Context, input *dto.UpdateProductInput) (dto.PublicProduct, error)
+	CreateProduct(ctx context.Context, input *dto.CreateProductInput) (dto.PublicProduct, error)
+	UpdateProduct(id int, ctx context.Context, input *dto.UpdateProductInput) (dto.PublicProduct, error)
 }
 
 type productService struct {
@@ -37,15 +37,15 @@ func (s *productService) GetProduct(data *dto.PaginationRequest) (dto.PublicProd
 	var errResult error
 
 	if data.ID != nil && *data.ID > 0 {
-		product, result := s.repo.FindByID(*data.ID)
+		product, result := s.repo.FindByProductID(*data.ID)
 		publicProduct = utils.ToPublicProduct(product)
 		errResult = result.Error
 	} else if data.Name != "" {
-		product, result := s.repo.FindByName(data.Name)
+		product, result := s.repo.FindByProductName(data.Name)
 		publicProduct = utils.ToPublicProduct(product)
 		errResult = result.Error
 	} else {
-		product, result := s.repo.FindByCode(data.Code)
+		product, result := s.repo.FindByProductCode(data.Code)
 		publicProduct = utils.ToPublicProduct(product)
 		errResult = result.Error
 	}
@@ -73,7 +73,7 @@ func (s *productService) GetAllProducts(request *dto.PaginationRequest) (*dto.Pa
 		}
 	}
 
-	pg, err := s.repo.FindAll(request)
+	pg, err := s.repo.FindAllProducts(request)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (s *productService) GetAllProducts(request *dto.PaginationRequest) (*dto.Pa
 	return pg, nil
 }
 
-func (s *productService) Create(ctx context.Context, input *dto.CreateProductInput) (dto.PublicProduct, error) {
+func (s *productService) CreateProduct(ctx context.Context, input *dto.CreateProductInput) (dto.PublicProduct, error) {
 	creatorId, ok := ctx.Value(config.UserIDKey).(uint)
 	if !ok {
 		return dto.PublicProduct{}, errs.New("invalid context session user ID", http.StatusInternalServerError)
@@ -100,10 +100,10 @@ func (s *productService) Create(ctx context.Context, input *dto.CreateProductInp
 	if !isValid {
 		return dto.PublicProduct{}, err
 	}
-	return s.repo.Create(input, creatorId)
+	return s.repo.CreateProduct(input, creatorId)
 }
 
-func (s *productService) Update(id int, ctx context.Context, input *dto.UpdateProductInput) (dto.PublicProduct, error) {
+func (s *productService) UpdateProduct(id int, ctx context.Context, input *dto.UpdateProductInput) (dto.PublicProduct, error) {
 	modifierId, ok := ctx.Value(config.UserIDKey).(uint)
 	if !ok {
 		return dto.PublicProduct{}, errs.New("invalid context session user ID", http.StatusBadRequest)
@@ -123,5 +123,5 @@ func (s *productService) Update(id int, ctx context.Context, input *dto.UpdatePr
 		return dto.PublicProduct{}, err
 	}
 
-	return s.repo.Update(id, input, modifierId)
+	return s.repo.UpdateProduct(id, input, modifierId)
 }

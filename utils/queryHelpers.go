@@ -26,6 +26,16 @@ func CompareNumberQuery(query *gorm.DB, field string, operator string, value any
 	return query
 }
 
+func OnDateQuery(query *gorm.DB, field string, value string) *gorm.DB {
+	if value != "" {
+		layout := "2006-01-02"
+		if _, err := time.Parse(layout, value); err == nil {
+			return query.Where(fmt.Sprintf("%s = ?", field), value)
+		}
+	}
+	return query
+}
+
 func BetweenDateQuery(query *gorm.DB, field string, value map[string]string) *gorm.DB {
 	if value["start_date"] != "" && value["end_date"] != "" {
 		layout := "2006-01-02"

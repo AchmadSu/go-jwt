@@ -2,6 +2,8 @@ package utils
 
 import (
 	"net/http"
+	"reflect"
+	"time"
 
 	"example.com/m/dto"
 	"example.com/m/errs"
@@ -30,52 +32,68 @@ func ContainsString(list []string, val string) bool {
 	return false
 }
 
-// func SetParsedUintUsersRelation(data map[string]string) map[string]uint {
-// 	uIntMap := make(map[string]uint)
-// 	for key, strVal := range data {
-// 		if key == "creator_id" || key == "modifier_id" {
-// 			parsedUint64, err := strconv.ParseUint(strVal, 10, 64)
-// 			if err != nil {
-// 				parsedUint64 = 0
-// 			}
-// 			uIntMap[key] = uint(parsedUint64)
-// 		}
-// 	}
-// 	return uIntMap
-// }
+func AssignedKeyModel(model interface{}, data map[string]any) error {
+	v := reflect.ValueOf(model)
+	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
+		return errs.New("model must be pointer to struct", http.StatusBadRequest)
+	}
+	v = v.Elem()
 
-// func parseInt(val any, defaultVal int) int {
-// 	switch v := val.(type) {
-// 	case int:
-// 		return v
-// 	case int64:
-// 		return int(v)
-// 	case float64:
-// 		return int(v)
-// 	case string:
-// 		i, err := strconv.Atoi(v)
-// 		if err == nil {
-// 			return i
-// 		}
-// 	}
-// 	return defaultVal
-// }
+	for key, value := range data {
+		// Skip value nil
+		if value == nil {
+			continue
+		}
 
-// func parseUint(val any) uint {
-// 	switch v := val.(type) {
-// 	case uint:
-// 		return v
-// 	case int:
-// 		return uint(v)
-// 	case int64:
-// 		return uint(v)
-// 	case float64:
-// 		return uint(v)
-// 	case string:
-// 		i, err := strconv.ParseUint(v, 10, 64)
-// 		if err == nil {
-// 			return uint(i)
-// 		}
-// 	}
-// 	return 0
-// }
+		val := reflect.ValueOf(value)
+
+		// Skip empty string
+		if val.Kind() == reflect.String && val.Len() == 0 {
+			continue
+		}
+
+		//skip empty date time
+		if t, ok := value.(time.Time); ok && t.IsZero() {
+			continue
+		}
+
+		if key == "Price" {
+			if qtyVal, ok := value.(int); ok && qtyVal <= 0 {
+				continue
+			}
+			if qtyVal, ok := value.(uint); ok && qtyVal == 0 {
+				continue
+			}
+			if qtyVal, ok := value.(float64); ok && qtyVal <= 0 {
+				continue
+			}
+		}
+
+		if key == "Qty" {
+			if qtyVal, ok := value.(int); ok && qtyVal < 0 {
+				continue
+			}
+			if qtyVal, ok := value.(float64); ok && qtyVal < 0 {
+				continue
+			}
+		}
+
+		// Skip empty slice/map
+		if (val.Kind() == reflect.Slice || val.Kind() == reflect.Map) && val.Len() == 0 {
+			continue
+		}
+
+		field := v.FieldByName(key)
+		if !field.IsValid() || !field.CanSet() {
+			continue // skip if field not found
+		}
+
+		// Assign value if data type is correct
+		if val.Type().AssignableTo(field.Type()) {
+			field.Set(val)
+		} else if val.Type().ConvertibleTo(field.Type()) {
+			field.Set(val.Convert(field.Type()))
+		}
+	}
+	return nil
+}

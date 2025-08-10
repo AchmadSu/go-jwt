@@ -13,12 +13,12 @@ import (
 const ProductTable config.TableName = "products"
 
 type ProductRepository interface {
-	FindByID(id int) (models.Product, *gorm.DB)
-	FindByCode(code string) (models.Product, *gorm.DB)
-	FindByName(name string) (models.Product, *gorm.DB)
-	FindAll(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error)
-	Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error)
-	Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error)
+	FindByProductID(id int) (models.Product, *gorm.DB)
+	FindByProductCode(code string) (models.Product, *gorm.DB)
+	FindByProductName(name string) (models.Product, *gorm.DB)
+	FindAllProducts(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error)
+	CreateProduct(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error)
+	UpdateProduct(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error)
 }
 
 type productRepository struct{}
@@ -27,7 +27,7 @@ func NewProductRepository() ProductRepository {
 	return &productRepository{}
 }
 
-func (r *productRepository) FindByID(id int) (models.Product, *gorm.DB) {
+func (r *productRepository) FindByProductID(id int) (models.Product, *gorm.DB) {
 	var product models.Product
 	result := initializers.DB.First(&product, "id = ?", id)
 	var productWithUser models.Product
@@ -39,7 +39,7 @@ func (r *productRepository) FindByID(id int) (models.Product, *gorm.DB) {
 	return productWithUser, result
 }
 
-func (r *productRepository) FindByCode(code string) (models.Product, *gorm.DB) {
+func (r *productRepository) FindByProductCode(code string) (models.Product, *gorm.DB) {
 	var product models.Product
 	result := initializers.DB.First(&product, "code = ?", code)
 	var productWithUser models.Product
@@ -51,7 +51,7 @@ func (r *productRepository) FindByCode(code string) (models.Product, *gorm.DB) {
 	return productWithUser, result
 }
 
-func (r *productRepository) FindByName(name string) (models.Product, *gorm.DB) {
+func (r *productRepository) FindByProductName(name string) (models.Product, *gorm.DB) {
 	var product models.Product
 	result := initializers.DB.First(&product, "name = ?", name)
 	var productWithUser models.Product
@@ -63,7 +63,7 @@ func (r *productRepository) FindByName(name string) (models.Product, *gorm.DB) {
 	return productWithUser, result
 }
 
-func (r *productRepository) FindAll(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error) {
+func (r *productRepository) FindAllProducts(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error) {
 	query := initializers.DB.Model(&models.Product{}).
 		Joins("LEFT JOIN users AS creator ON creator.id = products.created_by").
 		Joins("LEFT JOIN users AS modifier ON modifier.id = products.modified_by").
@@ -118,7 +118,7 @@ func (r *productRepository) FindAll(request *dto.PaginationRequest) (*dto.Pagina
 	return pageResult, nil
 }
 
-func (r *productRepository) Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error) {
+func (r *productRepository) CreateProduct(input *dto.CreateProductInput, creatorId uint) (dto.PublicProduct, error) {
 	product := models.Product{
 		Code:      input.Code,
 		Name:      input.Name,
@@ -139,7 +139,7 @@ func (r *productRepository) Create(input *dto.CreateProductInput, creatorId uint
 	return utils.ToPublicProduct(productWithUser), nil
 }
 
-func (r *productRepository) Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error) {
+func (r *productRepository) UpdateProduct(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicProduct, error) {
 	var product models.Product
 	trx := initializers.DB.Begin()
 	if trx.Error != nil {
@@ -147,30 +147,25 @@ func (r *productRepository) Update(id int, input *dto.UpdateProductInput, modifi
 		return dto.PublicProduct{}, trx.Error
 	}
 
-	if err := initializers.DB.First(&product, id).Error; err != nil {
+	if err := trx.First(&product, id).Error; err != nil {
 		trx.Rollback()
 		return dto.PublicProduct{}, err
 	}
 
-	if input.Code != "" {
-		product.Code = input.Code
+	data := map[string]any{
+		"Code":       input.Code,
+		"Name":       input.Name,
+		"Desc":       input.Desc,
+		"IsActive":   input.IsActive,
+		"ModifiedBy": modifierId,
 	}
 
-	if input.Name != "" {
-		product.Name = input.Name
+	if err := utils.AssignedKeyModel(&product, data); err != nil {
+		trx.Rollback()
+		return dto.PublicProduct{}, err
 	}
 
-	if input.Desc != "" {
-		product.Desc = input.Desc
-	}
-
-	if input.IsActive != nil && (*input.IsActive == 0 || *input.IsActive == 1 || *input.IsActive == 2) {
-		product.IsActive = models.ProductStatus(*input.IsActive)
-	}
-
-	product.ModifiedBy = &modifierId
-
-	if err := initializers.DB.Save(&product).Error; err != nil {
+	if err := trx.Save(&product).Error; err != nil {
 		trx.Rollback()
 		return dto.PublicProduct{}, err
 	}

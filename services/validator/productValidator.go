@@ -10,7 +10,6 @@ import (
 
 type ProductValidatorService interface {
 	ValidateInsertProduct(input map[string]string) (bool, error)
-	// ValidateUserLogin(input *dto.LoginUserInput) (dto.PublicUser, error)
 }
 
 type productValidatorService struct {
@@ -25,12 +24,12 @@ func (v *productValidatorService) ValidateInsertProduct(input map[string]string)
 	if input["code"] == "" && input["name"] == "" && input["desc"] == "" && input["is_active"] == "" {
 		return false, errs.New("content must have at least one field", http.StatusBadRequest)
 	}
-	_, result := v.productRepo.FindByCode(input["code"])
+	_, result := v.productRepo.FindByProductCode(input["code"])
 	if result.RowsAffected > 0 {
 		return false, errs.New("code is already exists. Please try another code!", http.StatusBadRequest)
 	}
 
-	_, result = v.productRepo.FindByName(input["name"])
+	_, result = v.productRepo.FindByProductName(input["name"])
 	if result.RowsAffected > 0 {
 		return false, errs.New("name is already exists. Please try another name!", http.StatusBadRequest)
 	}

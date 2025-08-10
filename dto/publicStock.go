@@ -17,6 +17,7 @@ type PublicStock struct {
 	Qty          int         `json:"qty"`
 	Price        float64     `json:"price"`
 	DateEntry    time.Time   `json:"date_entry"`
+	CreatorId    *uint       `json:"creator_id"`
 	CreatorName  string      `json:"creator_name"`
 	ModifierId   *uint       `json:"modifier_id"`
 	ModifierName string      `json:"modifier_name"`

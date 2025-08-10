@@ -10,13 +10,13 @@ import (
 	"gorm.io/gorm"
 )
 
-const StockTable config.TableName = "products"
+const StockTable config.TableName = "stocks"
 
 type StockRepository interface {
-	FindByID(id int) (models.Stock, *gorm.DB)
-	FindAll(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicStock], error)
-	// Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicStock, error)
-	// Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicStock, error)
+	FindByStockID(id int) (models.Stock, *gorm.DB)
+	FindAllStocks(paginate *dto.PaginationRequest, stockRequest *dto.PaginationStockRequest) (*dto.PaginationResponse[dto.PublicStock], error)
+	CreateStock(input *dto.CreateStockInput, creatorId uint) (dto.PublicStock, error)
+	UpdateStock(id int, input *dto.UpdateStockInput, modifierId uint) (dto.PublicStock, error)
 }
 
 type stockRepository struct{}
@@ -25,7 +25,7 @@ func NewStockRepository() StockRepository {
 	return &stockRepository{}
 }
 
-func (r *stockRepository) FindByID(id int) (models.Stock, *gorm.DB) {
+func (r *stockRepository) FindByStockID(id int) (models.Stock, *gorm.DB) {
 	var stock models.Stock
 	result := initializers.DB.First(&stock, "id = ?", id)
 	var stockWithUser models.Stock
@@ -37,7 +37,7 @@ func (r *stockRepository) FindByID(id int) (models.Stock, *gorm.DB) {
 	return stockWithUser, result
 }
 
-func (r *stockRepository) FindAll(request *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicStock], error) {
+func (r *stockRepository) FindAllStocks(request *dto.PaginationRequest, stockRequest *dto.PaginationStockRequest) (*dto.PaginationResponse[dto.PublicStock], error) {
 	query := initializers.DB.Model(&models.Stock{}).
 		Joins("LEFT JOIN products AS product ON product.id = stocks.product_id").
 		Joins("LEFT JOIN users AS creator ON creator.id = stocks.created_by").
@@ -58,6 +58,7 @@ func (r *stockRepository) FindAll(request *dto.PaginationRequest) (*dto.Paginati
 			"modifier.name AS modifier_name",
 		})
 
+	query = utils.StockFilterQuery(stockRequest, query)
 	query = utils.FilterQuery(request, query, string(StockTable)).Debug()
 
 	allowedSortFields := []string{
@@ -97,72 +98,70 @@ func (r *stockRepository) FindAll(request *dto.PaginationRequest) (*dto.Paginati
 	return pageResult, nil
 }
 
-// func (r *stockRepository) Create(input *dto.CreateProductInput, creatorId uint) (dto.PublicStock, error) {
-// 	stock := models.Stock{
-// 		Code:      input.Code,
-// 		Name:      input.Name,
-// 		Desc:      input.Desc,
-// 		CreatedBy: &creatorId,
-// 	}
-// 	result := initializers.DB.Create(&stock)
-// 	if result.Error != nil {
-// 		return dto.PublicStock{}, result.Error
-// 	}
+func (r *stockRepository) CreateStock(input *dto.CreateStockInput, creatorId uint) (dto.PublicStock, error) {
+	stock := models.Stock{
+		ProductId: &input.ProductId,
+		Qty:       models.StockQty(input.Qty),
+		Price:     models.StockPrice(input.Price),
+		DateEntry: input.DateEntry,
+		CreatedBy: &creatorId,
+	}
+	result := initializers.DB.Create(&stock)
+	if result.Error != nil {
+		return dto.PublicStock{}, result.Error
+	}
 
-// 	var stockWithUser models.Stock
-// 	err := helpers.PreloadRelationByID(&stockWithUser, stock.ID, []string{"Creator", "Modifier"})
-// 	if err != nil {
-// 		return dto.PublicStock{}, err
-// 	}
+	var stockWithUser models.Stock
+	err := helpers.PreloadRelationByID(&stockWithUser, stock.ID, []string{"Creator", "Modifier"})
+	if err != nil {
+		return dto.PublicStock{}, err
+	}
 
-// 	return utils.ToPublicProduct(stockWithUser), nil
-// }
+	return utils.ToPublicStock(stockWithUser), nil
+}
 
-// func (r *stockRepository) Update(id int, input *dto.UpdateProductInput, modifierId uint) (dto.PublicStock, error) {
-// 	var stock models.Stock
-// 	trx := initializers.DB.Begin()
-// 	if trx.Error != nil {
-// 		trx.Rollback()
-// 		return dto.PublicStock{}, trx.Error
-// 	}
+func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modifierId uint) (dto.PublicStock, error) {
+	var stock models.Stock
 
-// 	if err := initializers.DB.First(&stock, id).Error; err != nil {
-// 		trx.Rollback()
-// 		return dto.PublicStock{}, err
-// 	}
+	trx := initializers.DB.Begin()
+	if trx.Error != nil {
+		return dto.PublicStock{}, trx.Error
+	}
 
-// 	if input.Code != "" {
-// 		stock.Code = input.Code
-// 	}
+	if err := trx.First(&stock, id).Error; err != nil {
+		trx.Rollback()
+		return dto.PublicStock{}, err
+	}
 
-// 	if input.Name != "" {
-// 		stock.Name = input.Name
-// 	}
+	data := map[string]any{
+		"ProductId":  input.ProductId,
+		"Qty":        input.Qty,
+		"Price":      input.Price,
+		"DateEntry":  input.DateEntry,
+		"IsActive":   input.IsActive,
+		"ModifiedBy": modifierId,
+	}
 
-// 	if input.Desc != "" {
-// 		stock.Desc = input.Desc
-// 	}
+	if err := utils.AssignedKeyModel(&stock, data); err != nil {
+		trx.Rollback()
+		return dto.PublicStock{}, err
+	}
 
-// 	if input.IsActive == 0 || input.IsActive == 1 || input.IsActive == 2 {
-// 		stock.IsActive = models.ProductStatus(input.IsActive)
-// 	}
+	// Save into DB
+	if err := trx.Save(&stock).Error; err != nil {
+		trx.Rollback()
+		return dto.PublicStock{}, err
+	}
 
-// 	stock.ModifiedBy = &modifierId
+	// Commit transaction
+	if err := trx.Commit().Error; err != nil {
+		return dto.PublicStock{}, err
+	}
 
-// 	if err := initializers.DB.Save(&stock).Error; err != nil {
-// 		trx.Rollback()
-// 		return dto.PublicStock{}, err
-// 	}
+	var stockWithUser models.Stock
+	if err := helpers.PreloadRelationByID(&stockWithUser, stock.ID, []string{"Creator", "Modifier"}); err != nil {
+		return dto.PublicStock{}, err
+	}
 
-// 	if err := trx.Commit().Error; err != nil {
-// 		return dto.PublicStock{}, err
-// 	}
-
-// 	var stockWithUser models.Stock
-// 	err := helpers.PreloadRelationByID(&stockWithUser, stock.ID, []string{"Creator", "Modifier"})
-// 	if err != nil {
-// 		return dto.PublicStock{}, err
-// 	}
-
-// 	return utils.ToPublicProduct(stockWithUser), nil
-// }
+	return utils.ToPublicStock(stockWithUser), nil
+}

@@ -21,7 +21,7 @@ func CreateProduct(c *gin.Context) {
 		errResp.Send(c)
 		return
 	}
-	product, err := bootstrap.ProductService.Create(c.Request.Context(), &input)
+	product, err := bootstrap.ProductService.CreateProduct(c.Request.Context(), &input)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
@@ -52,7 +52,7 @@ func UpdateProduct(c *gin.Context) {
 		errResp.Send(c)
 		return
 	}
-	product, err := bootstrap.ProductService.Update(parsedID, c.Request.Context(), &input)
+	product, err := bootstrap.ProductService.UpdateProduct(parsedID, c.Request.Context(), &input)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
