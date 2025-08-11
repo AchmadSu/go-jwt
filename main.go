@@ -13,6 +13,7 @@ func init() {
 	initializers.SyncDatabase()
 	bootstrap.InitUserService()
 	bootstrap.InitProductService()
+	bootstrap.InitStockService()
 }
 
 func main() {
