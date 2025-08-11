@@ -11,35 +11,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateProduct(c *gin.Context) {
-	var input dto.CreateProductInput
+func CreateStock(c *gin.Context) {
+	var input dto.CreateStockInput
 	resp := utils.NewResponse()
-	message := "Failed to create product"
+	message := "Failed to create stock"
 	if c.Bind(&input) != nil {
 		err := errs.New("Body request invalid", http.StatusBadRequest)
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
 		return
 	}
-	product, err := bootstrap.ProductService.CreateProduct(c.Request.Context(), &input)
+	stock, err := bootstrap.StockService.CreateStock(c.Request.Context(), &input)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
 		return
 	}
-	message = "Product has been registered successfully"
+	message = "Stock has been registered successfully"
 	resp.SetStatus(http.StatusOK).
 		SetMessage(message).
-		SetPayload(product).
+		SetPayload(stock).
 		Send(c)
 }
 
-func UpdateProduct(c *gin.Context) {
-	var input dto.UpdateProductInput
+func UpdateStock(c *gin.Context) {
+	var input dto.UpdateStockInput
 	resp := utils.NewResponse()
 	id := c.Query("id")
 	parsedID, err := strconv.Atoi(id)
-	message := "Failed to update product"
+	message := "Failed to update stock"
 	if c.Bind(&input) != nil {
 		err := errs.New("Body request invalid", http.StatusBadRequest)
 		errResp := utils.PrintErrorResponse(resp, err, message)
@@ -47,28 +47,28 @@ func UpdateProduct(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		err := errs.New("product ID is not a number", http.StatusBadRequest)
+		err := errs.New("stock ID is not a number", http.StatusBadRequest)
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
 		return
 	}
-	product, err := bootstrap.ProductService.UpdateProduct(parsedID, c.Request.Context(), &input)
+	stock, err := bootstrap.StockService.UpdateStock(parsedID, c.Request.Context(), &input)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
 		return
 	}
-	message = "Product has been updated successfully"
+	message = "Stock has been updated successfully"
 	resp.SetStatus(http.StatusOK).
 		SetMessage(message).
-		SetPayload(product).
+		SetPayload(stock).
 		Send(c)
 }
 
-func GetProducts(c *gin.Context) {
+func GetStocks(c *gin.Context) {
 	var pagination dto.PaginationRequest
 	resp := utils.NewResponse()
-	message := "Failed to get product"
+	message := "Failed to get stock"
 
 	if err := c.ShouldBindQuery(&pagination); err != nil {
 		err = errs.New(utils.GetSafeErrorMessage(err, "Body request pagination invalid"), http.StatusBadRequest)
@@ -78,15 +78,15 @@ func GetProducts(c *gin.Context) {
 	}
 
 	if pagination.Name != "" || pagination.ID != nil || pagination.Code != "" {
-		product, err := bootstrap.ProductService.GetProduct(&pagination)
+		stock, err := bootstrap.ProductService.GetProduct(&pagination)
 		if err != nil {
 			errResp := utils.PrintErrorResponse(resp, err, message)
 			errResp.Send(c)
 			return
 		}
-		message = "Get product by parameter query successfully"
+		message = "Get stock by parameter query successfully"
 		resp.SetMessage(message).
-			SetPayload(product).
+			SetPayload(stock).
 			Send(c)
 		return
 	}

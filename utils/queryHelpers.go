@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"example.com/m/config"
 	"example.com/m/dto"
 	"gorm.io/gorm"
 )
@@ -28,8 +29,7 @@ func CompareNumberQuery(query *gorm.DB, field string, operator string, value any
 
 func OnDateQuery(query *gorm.DB, field string, value string) *gorm.DB {
 	if value != "" {
-		layout := "2006-01-02"
-		if _, err := time.Parse(layout, value); err == nil {
+		if _, err := time.Parse(string(config.LayoutDate), value); err == nil {
 			return query.Where(fmt.Sprintf("%s = ?", field), value)
 		}
 	}
@@ -38,11 +38,12 @@ func OnDateQuery(query *gorm.DB, field string, value string) *gorm.DB {
 
 func BetweenDateQuery(query *gorm.DB, field string, value map[string]string) *gorm.DB {
 	if value["start_date"] != "" && value["end_date"] != "" {
-		layout := "2006-01-02"
-		if _, err := time.Parse(layout, value["start_date"]); err == nil {
-			if _, err := time.Parse(layout, value["end_date"]); err == nil {
-				return query.Where(fmt.Sprintf("%s >= ?", field), value["start_date"]).
-					Where(fmt.Sprintf("%s <= ?", field), value["end_date"])
+		if _, err := time.Parse(string(config.LayoutDate), value["start_date"]); err == nil {
+			if _, err := time.Parse(string(config.LayoutDate), value["end_date"]); err == nil {
+				start := value["start_date"] + " 00:00:00"
+				end := value["end_date"] + " 23:59:59"
+				return query.Where(fmt.Sprintf("%s >= ?", field), start).
+					Where(fmt.Sprintf("%s <= ?", field), end)
 			}
 		}
 	}

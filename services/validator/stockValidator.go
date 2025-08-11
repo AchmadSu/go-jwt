@@ -2,11 +2,11 @@ package validator
 
 import (
 	"net/http"
-	"time"
 
 	"example.com/m/dto"
 	"example.com/m/errs"
 	"example.com/m/repositories"
+	"example.com/m/utils"
 )
 
 type StockValidatorService interface {
@@ -24,7 +24,7 @@ func NewStockValidatorService(repo repositories.StockRepository, productRepo rep
 }
 
 func (v *stockValidatorService) ValidateInsertStock(input *dto.CreateStockInput) (bool, error) {
-	if input.Qty < 0 || input.Price <= 0 || input.DateEntry.IsZero() {
+	if input.Qty < 0 || input.Price <= 0 || input.Date == "" || input.Time == "" {
 		return false, errs.New("invalid create stock request ", http.StatusBadRequest)
 	}
 	_, result := v.productRepo.FindByProductID(int(input.ProductId))
@@ -32,9 +32,7 @@ func (v *stockValidatorService) ValidateInsertStock(input *dto.CreateStockInput)
 		return false, errs.New("product not found", http.StatusNotFound)
 	}
 
-	layout := "2006-01-02 13:59:59"
-
-	if _, err := time.Parse(layout, input.DateEntry.Format(layout)); err != nil {
+	if _, err := utils.MergeDateTime(input.Date, input.Time); err != nil {
 		return false, errs.New("invalid date entry format", http.StatusBadRequest)
 	}
 
@@ -62,10 +60,8 @@ func (v *stockValidatorService) ValidateUpdateStock(id int, input *dto.UpdateSto
 		return false, errs.New("invalid create stock request ", http.StatusBadRequest)
 	}
 
-	layout := "2006-01-02 13:59:59"
-
-	if input.DateEntry.IsZero() {
-		if _, err := time.Parse(layout, input.DateEntry.Format(layout)); err != nil {
+	if input.Date != "" && input.Time != "" {
+		if _, err := utils.MergeDateTime(input.Date, input.Time); err != nil {
 			return false, errs.New("invalid date entry format", http.StatusBadRequest)
 		}
 	}

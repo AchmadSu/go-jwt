@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 	"time"
 
+	"example.com/m/config"
 	"example.com/m/dto"
 	"example.com/m/errs"
 	"github.com/gin-gonic/gin"
@@ -32,7 +34,7 @@ func ContainsString(list []string, val string) bool {
 	return false
 }
 
-func AssignedKeyModel(model interface{}, data map[string]any) error {
+func AssignedKeyModel(model any, data map[string]any) error {
 	v := reflect.ValueOf(model)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return errs.New("model must be pointer to struct", http.StatusBadRequest)
@@ -96,4 +98,13 @@ func AssignedKeyModel(model interface{}, data map[string]any) error {
 		}
 	}
 	return nil
+}
+
+func MergeDateTime(dateStr string, timeStr string) (time.Time, error) {
+	combined := fmt.Sprintf("%s %s", dateStr, timeStr)
+	result, err := time.Parse(string(config.LayoutDateTime), combined)
+	if err != nil {
+		return time.Time{}, errs.New("invalid format date", http.StatusBadRequest)
+	}
+	return result, nil
 }

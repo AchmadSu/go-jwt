@@ -94,6 +94,8 @@ func (s *stockService) CreateStock(ctx context.Context, input *dto.CreateStockIn
 	if !isValid {
 		return dto.PublicStock{}, err
 	}
+	dateEntry, _ := utils.MergeDateTime(input.Date, input.Time)
+	input.DateEntry = dateEntry
 	return s.repo.CreateStock(input, creatorId)
 }
 
@@ -107,6 +109,9 @@ func (s *stockService) UpdateStock(id int, ctx context.Context, input *dto.Updat
 	if !isValid {
 		return dto.PublicStock{}, err
 	}
-
+	if input.Date != "" && input.Time != "" {
+		dateEntry, _ := utils.MergeDateTime(input.Date, input.Time)
+		input.DateEntry = dateEntry
+	}
 	return s.repo.UpdateStock(id, input, modifierId)
 }
