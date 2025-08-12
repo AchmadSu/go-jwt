@@ -48,7 +48,7 @@ func (v *stockValidatorService) ValidateUpdateStock(id int, input *dto.UpdateSto
 	if result.RowsAffected == 0 {
 		return false, errs.New("stock not found", http.StatusNotFound)
 	}
-	if product.IsActive == 0 {
+	if product.IsActive == 0 && input.IsActive == nil {
 		return false, errs.New("product is inactive", http.StatusConflict)
 	}
 	if input.ProductID != nil {

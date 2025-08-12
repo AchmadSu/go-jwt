@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"example.com/m/config"
@@ -42,61 +43,66 @@ func AssignedKeyModel(model any, data map[string]any) error {
 	v = v.Elem()
 
 	for key, value := range data {
-		// Skip value nil
 		if value == nil {
 			continue
 		}
 
 		val := reflect.ValueOf(value)
 
-		// Skip empty string
+		// Dereference pointer
+		if val.Kind() == reflect.Ptr {
+			if val.IsNil() {
+				continue
+			}
+			val = val.Elem()
+			value = val.Interface()
+		}
+
 		if val.Kind() == reflect.String && val.Len() == 0 {
 			continue
 		}
 
-		//skip empty date time
 		if t, ok := value.(time.Time); ok && t.IsZero() {
 			continue
 		}
 
-		if key == "Price" {
-			if qtyVal, ok := value.(int); ok && qtyVal <= 0 {
+		if strings.EqualFold(key, "Price") {
+			if num, ok := value.(float64); ok && num <= 0 {
 				continue
 			}
-			if qtyVal, ok := value.(uint); ok && qtyVal == 0 {
+			if num, ok := value.(int); ok && num <= 0 {
 				continue
 			}
-			if qtyVal, ok := value.(float64); ok && qtyVal <= 0 {
-				continue
-			}
-		}
-
-		if key == "Qty" {
-			if qtyVal, ok := value.(int); ok && qtyVal < 0 {
-				continue
-			}
-			if qtyVal, ok := value.(float64); ok && qtyVal < 0 {
+			if num, ok := value.(uint); ok && num == 0 {
 				continue
 			}
 		}
 
-		// Skip empty slice/map
+		if strings.EqualFold(key, "Qty") {
+			if num, ok := value.(float64); ok && num < 0 {
+				continue
+			}
+			if num, ok := value.(int); ok && num < 0 {
+				continue
+			}
+		}
+
 		if (val.Kind() == reflect.Slice || val.Kind() == reflect.Map) && val.Len() == 0 {
 			continue
 		}
 
 		field := v.FieldByName(key)
 		if !field.IsValid() || !field.CanSet() {
-			continue // skip if field not found
+			continue
 		}
 
-		// Assign value if data type is correct
 		if val.Type().AssignableTo(field.Type()) {
 			field.Set(val)
 		} else if val.Type().ConvertibleTo(field.Type()) {
 			field.Set(val.Convert(field.Type()))
 		}
 	}
+
 	return nil
 }
 

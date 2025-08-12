@@ -125,6 +125,7 @@ func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modif
 
 	trx := initializers.DB.Begin()
 	if trx.Error != nil {
+		trx.Rollback()
 		return dto.PublicStock{}, trx.Error
 	}
 
@@ -137,9 +138,9 @@ func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modif
 		"ProductID":  input.ProductID,
 		"Qty":        input.Qty,
 		"Price":      input.Price,
-		"DateEntry":  input.DateEntry,
 		"IsActive":   input.IsActive,
-		"ModifiedBy": modifierId,
+		"DateEntry":  input.DateEntry,
+		"ModifiedBy": &modifierId,
 	}
 
 	if err := utils.AssignedKeyModel(&stock, data); err != nil {

@@ -156,8 +156,8 @@ func (r *productRepository) UpdateProduct(id int, input *dto.UpdateProductInput,
 		"Code":       input.Code,
 		"Name":       input.Name,
 		"Desc":       input.Desc,
-		"IsActive":   *input.IsActive,
-		"ModifiedBy": modifierId,
+		"IsActive":   input.IsActive,
+		"ModifiedBy": &modifierId,
 	}
 
 	if err := utils.AssignedKeyModel(&product, data); err != nil {
