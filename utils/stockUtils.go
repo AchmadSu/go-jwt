@@ -8,7 +8,9 @@ import (
 func ToPublicStock(s models.Stock) dto.PublicStock {
 	return dto.PublicStock{
 		ID:           s.ID,
-		ProductId:    s.ProductId,
+		ProductID:    &s.Product.ID,
+		ProductCode:  s.Product.Code,
+		ProductName:  s.Product.Name,
 		Qty:          int(s.Qty),
 		Price:        float64(s.Price),
 		DateEntry:    s.DateEntry,
@@ -24,5 +26,5 @@ func ToPublicStock(s models.Stock) dto.PublicStock {
 }
 
 func IsEmptyStock(s dto.PublicStock) bool {
-	return s.ID == 0 && s.ProductId == nil
+	return s.ID == 0 && s.ProductID == nil
 }

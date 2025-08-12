@@ -9,7 +9,7 @@ type StockStatus int
 
 type PublicStock struct {
 	ID           uint        `json:"id"`
-	ProductId    *uint       `json:"product_id"`
+	ProductID    *uint       `json:"product_id"`
 	ProductCode  string      `json:"product_code"`
 	ProductName  string      `json:"product_name"`
 	IsActive     StockStatus `json:"is_active"`

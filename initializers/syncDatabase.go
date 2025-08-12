@@ -6,5 +6,6 @@ func SyncDatabase() {
 	DB.AutoMigrate(
 		&models.User{},
 		&models.Product{},
+		&models.Stock{},
 	)
 }

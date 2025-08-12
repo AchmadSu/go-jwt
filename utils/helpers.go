@@ -102,7 +102,7 @@ func AssignedKeyModel(model any, data map[string]any) error {
 
 func MergeDateTime(dateStr string, timeStr string) (time.Time, error) {
 	combined := fmt.Sprintf("%s %s", dateStr, timeStr)
-	result, err := time.Parse(string(config.LayoutDateTime), combined)
+	result, err := time.ParseInLocation(string(config.LayoutDateTime), combined, time.Local)
 	if err != nil {
 		return time.Time{}, errs.New("invalid format date", http.StatusBadRequest)
 	}

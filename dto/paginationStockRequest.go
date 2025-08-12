@@ -1,7 +1,9 @@
 package dto
 
 type PaginationStockRequest struct {
-	ProductId        *uint  `form:"product_id"`
+	ProductID        *uint  `form:"product_id"`
+	ProductCode      string `form:"product_code"`
+	ProductName      string `form:"product_name"`
 	Qty              *uint  `form:"stock_qty"`
 	QtyLessThan      *uint  `form:"stock_less_than"`
 	QtyGreaterThan   *uint  `form:"stock_greater_than"`

@@ -29,8 +29,8 @@ func CompareNumberQuery(query *gorm.DB, field string, operator string, value any
 
 func OnDateQuery(query *gorm.DB, field string, value string) *gorm.DB {
 	if value != "" {
-		if _, err := time.Parse(string(config.LayoutDate), value); err == nil {
-			return query.Where(fmt.Sprintf("%s = ?", field), value)
+		if _, err := time.ParseInLocation(string(config.LayoutDate), value, time.Local); err == nil {
+			return query.Where(fmt.Sprintf("%s >= ?", field), value+" 00:00:00").Where(fmt.Sprintf("%s <= ?", field), value+" 23:59:59")
 		}
 	}
 	return query
@@ -38,8 +38,8 @@ func OnDateQuery(query *gorm.DB, field string, value string) *gorm.DB {
 
 func BetweenDateQuery(query *gorm.DB, field string, value map[string]string) *gorm.DB {
 	if value["start_date"] != "" && value["end_date"] != "" {
-		if _, err := time.Parse(string(config.LayoutDate), value["start_date"]); err == nil {
-			if _, err := time.Parse(string(config.LayoutDate), value["end_date"]); err == nil {
+		if _, err := time.ParseInLocation(string(config.LayoutDate), value["start_date"], time.Local); err == nil {
+			if _, err := time.ParseInLocation(string(config.LayoutDate), value["end_date"], time.Local); err == nil {
 				start := value["start_date"] + " 00:00:00"
 				end := value["end_date"] + " 23:59:59"
 				return query.Where(fmt.Sprintf("%s >= ?", field), start).

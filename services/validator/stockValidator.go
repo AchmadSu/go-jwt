@@ -25,11 +25,15 @@ func NewStockValidatorService(repo repositories.StockRepository, productRepo rep
 
 func (v *stockValidatorService) ValidateInsertStock(input *dto.CreateStockInput) (bool, error) {
 	if input.Qty < 0 || input.Price <= 0 || input.Date == "" || input.Time == "" {
-		return false, errs.New("invalid create stock request ", http.StatusBadRequest)
+		return false, errs.New("invalid create stock request", http.StatusBadRequest)
 	}
-	_, result := v.productRepo.FindByProductID(int(input.ProductId))
+	product, result := v.productRepo.FindByProductID(int(input.ProductID))
 	if result.RowsAffected == 0 {
 		return false, errs.New("product not found", http.StatusNotFound)
+	}
+
+	if product.IsActive == 0 {
+		return false, errs.New("product is inactive", http.StatusConflict)
 	}
 
 	if _, err := utils.MergeDateTime(input.Date, input.Time); err != nil {
@@ -40,12 +44,15 @@ func (v *stockValidatorService) ValidateInsertStock(input *dto.CreateStockInput)
 }
 
 func (v *stockValidatorService) ValidateUpdateStock(id int, input *dto.UpdateStockInput) (bool, error) {
-	_, result := v.repo.FindByStockID(id)
+	product, result := v.repo.FindByStockID(id)
 	if result.RowsAffected == 0 {
 		return false, errs.New("stock not found", http.StatusNotFound)
 	}
-	if input.ProductId != nil {
-		_, result := v.productRepo.FindByProductID(int(*input.ProductId))
+	if product.IsActive == 0 {
+		return false, errs.New("product is inactive", http.StatusConflict)
+	}
+	if input.ProductID != nil {
+		_, result := v.productRepo.FindByProductID(int(*input.ProductID))
 		if result.RowsAffected == 0 {
 			return false, errs.New("product not found", http.StatusNotFound)
 		}

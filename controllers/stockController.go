@@ -67,6 +67,7 @@ func UpdateStock(c *gin.Context) {
 
 func GetStocks(c *gin.Context) {
 	var pagination dto.PaginationRequest
+	var stockPagination dto.PaginationStockRequest
 	resp := utils.NewResponse()
 	message := "Failed to get stock"
 
@@ -77,8 +78,8 @@ func GetStocks(c *gin.Context) {
 		return
 	}
 
-	if pagination.Name != "" || pagination.ID != nil || pagination.Code != "" {
-		stock, err := bootstrap.ProductService.GetProduct(&pagination)
+	if pagination.ID != nil {
+		stock, err := bootstrap.StockService.GetStock(&pagination)
 		if err != nil {
 			errResp := utils.PrintErrorResponse(resp, err, message)
 			errResp.Send(c)
@@ -91,14 +92,21 @@ func GetStocks(c *gin.Context) {
 		return
 	}
 
-	pg, err := bootstrap.ProductService.GetAllProducts(&pagination)
+	if err := c.ShouldBindQuery(&stockPagination); err != nil {
+		err = errs.New(utils.GetSafeErrorMessage(err, "Body request stock pagination invalid"), http.StatusBadRequest)
+		errResp := utils.PrintErrorResponse(resp, err, message)
+		errResp.Send(c)
+		return
+	}
+
+	pg, err := bootstrap.StockService.GetAllStock(&pagination, &stockPagination)
 	if err != nil {
 		errResp := utils.PrintErrorResponse(resp, err, message)
 		errResp.Send(c)
 		return
 	}
 
-	message = "Get products successfully"
+	message = "Get stocks successfully"
 	resp.SetMessage(message).
 		SetPayload(pg.Data).
 		SetMeta(gin.H{

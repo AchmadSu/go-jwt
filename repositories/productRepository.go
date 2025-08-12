@@ -156,7 +156,7 @@ func (r *productRepository) UpdateProduct(id int, input *dto.UpdateProductInput,
 		"Code":       input.Code,
 		"Name":       input.Name,
 		"Desc":       input.Desc,
-		"IsActive":   input.IsActive,
+		"IsActive":   *input.IsActive,
 		"ModifiedBy": modifierId,
 	}
 

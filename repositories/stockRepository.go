@@ -44,8 +44,9 @@ func (r *stockRepository) FindAllStocks(request *dto.PaginationRequest, stockReq
 		Joins("LEFT JOIN users AS modifier ON modifier.id = stocks.modified_by").
 		Select([]string{
 			"stocks.id AS id",
-			"product.code",
-			"product.name AS name",
+			"product.id AS product_id",
+			"product.code AS product_code",
+			"product.name AS product_name",
 			"stocks.qty",
 			"stocks.price",
 			"stocks.date_entry",
@@ -63,8 +64,9 @@ func (r *stockRepository) FindAllStocks(request *dto.PaginationRequest, stockReq
 
 	allowedSortFields := []string{
 		`id`,
-		`name`,
-		`code`,
+		`product_id`,
+		`product_name`,
+		`product_code`,
 		`is_active`,
 		`qty`,
 		`price`,
@@ -75,12 +77,10 @@ func (r *stockRepository) FindAllStocks(request *dto.PaginationRequest, stockReq
 		`updated_at`,
 	}
 	searchFields := []string{
-		`products.name`,
-		`products.code`,
 		`creator.name`,
 		`modifier.name`,
 	}
-	defaultOrder := "products.name asc"
+	defaultOrder := "product.name asc"
 	pageResult, err := utils.Paginate[dto.PublicStock](request, query, allowedSortFields, defaultOrder, searchFields)
 
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *stockRepository) FindAllStocks(request *dto.PaginationRequest, stockReq
 
 func (r *stockRepository) CreateStock(input *dto.CreateStockInput, creatorId uint) (dto.PublicStock, error) {
 	stock := models.Stock{
-		ProductId: &input.ProductId,
+		ProductID: &input.ProductID,
 		Qty:       models.StockQty(input.Qty),
 		Price:     models.StockPrice(input.Price),
 		DateEntry: input.DateEntry,
@@ -111,13 +111,13 @@ func (r *stockRepository) CreateStock(input *dto.CreateStockInput, creatorId uin
 		return dto.PublicStock{}, result.Error
 	}
 
-	var stockWithUser models.Stock
-	err := helpers.PreloadRelationByID(&stockWithUser, stock.ID, []string{"Creator", "Modifier"})
+	var finalStock models.Stock
+	err := helpers.PreloadRelationByID(&finalStock, stock.ID, []string{"Creator", "Modifier", "Product"})
 	if err != nil {
 		return dto.PublicStock{}, err
 	}
 
-	return utils.ToPublicStock(stockWithUser), nil
+	return utils.ToPublicStock(finalStock), nil
 }
 
 func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modifierId uint) (dto.PublicStock, error) {
@@ -134,7 +134,7 @@ func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modif
 	}
 
 	data := map[string]any{
-		"ProductId":  input.ProductId,
+		"ProductID":  input.ProductID,
 		"Qty":        input.Qty,
 		"Price":      input.Price,
 		"DateEntry":  input.DateEntry,
@@ -158,10 +158,11 @@ func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modif
 		return dto.PublicStock{}, err
 	}
 
-	var stockWithUser models.Stock
-	if err := helpers.PreloadRelationByID(&stockWithUser, stock.ID, []string{"Creator", "Modifier"}); err != nil {
+	var finalStock models.Stock
+	err := helpers.PreloadRelationByID(&finalStock, stock.ID, []string{"Creator", "Modifier", "Product"})
+	if err != nil {
 		return dto.PublicStock{}, err
 	}
 
-	return utils.ToPublicStock(stockWithUser), nil
+	return utils.ToPublicStock(finalStock), nil
 }

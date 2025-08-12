@@ -42,11 +42,11 @@ func (s *stockService) GetStock(data *dto.PaginationRequest) (dto.PublicStock, e
 	var errResult error
 
 	if data.ID != nil && *data.ID > 0 {
-		product, result := s.repo.FindByStockID(*data.ID)
-		publicStock = utils.ToPublicStock(product)
+		stock, result := s.repo.FindByStockID(*data.ID)
+		publicStock = utils.ToPublicStock(stock)
 		errResult = result.Error
 	} else {
-		return dto.PublicStock{}, errs.New("invalid id request", http.StatusBadRequest)
+		return dto.PublicStock{}, errs.New("invalid request", http.StatusBadRequest)
 	}
 
 	if utils.IsEmptyStock(publicStock) {

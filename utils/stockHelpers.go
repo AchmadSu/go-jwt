@@ -11,26 +11,33 @@ import (
 const StockTable config.TableName = "stocks"
 
 func StockFilterQuery(param *dto.PaginationStockRequest, query *gorm.DB) *gorm.DB {
-	if param.ProductId != nil {
-		query = query.Where("product_id = ?", *param.ProductId)
+	if param.ProductID != nil {
+		query = query.Where("product_id = ?", *param.ProductID)
+	}
+	if param.ProductCode != "" {
+		query = query.Where("product.code = ?", param.ProductCode)
+	}
+	if param.ProductName != "" {
+		searchTerm := "%" + param.ProductName + "%"
+		query = query.Where("product.name ILIKE ?", searchTerm)
 	}
 	if param.Qty != nil {
-		query = CompareNumberQuery(query, "qty", "=", *param.Qty)
+		query = query.Where("qty = ?", *param.Qty)
 	}
 	if param.QtyGreaterThan != nil {
-		query = CompareNumberQuery(query, "qty", ">", *param.QtyGreaterThan)
+		query = query.Where("qty > ?", *param.QtyGreaterThan)
 	}
 	if param.QtyLessThan != nil {
-		query = CompareNumberQuery(query, "qty", "<", *param.QtyLessThan)
+		query = query.Where("qty < ?", *param.QtyLessThan)
 	}
 	if param.Price != nil {
-		query = CompareNumberQuery(query, "price", "=", *param.Price)
+		query = query.Where("price = ?", *param.Price)
 	}
 	if param.PriceGreaterThan != nil {
-		query = CompareNumberQuery(query, "price", ">", *param.PriceGreaterThan)
+		query = query.Where("price > ?", *param.PriceGreaterThan)
 	}
 	if param.PriceLessThan != nil {
-		query = CompareNumberQuery(query, "qty", "<", *param.PriceLessThan)
+		query = query.Where("price < ?", *param.PriceLessThan)
 	}
 	if param.DateEntry != "" {
 		query = OnDateQuery(query, "date_entry", param.DateEntry)

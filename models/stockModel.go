@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type ProductId uint
+type ProductID uint
 type StockQty int
 type StockPrice float64
 type StockStatus int
@@ -29,7 +29,7 @@ func (ss StockStatus) String() string {
 
 type Stock struct {
 	gorm.Model
-	ProductId  *uint       `gorm:"not null"`
+	ProductID  *uint       `gorm:"not null"`
 	Product    Product     `gorm:"foreignKey:ProductID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"` //relation to product table
 	Qty        StockQty    `gorm:"type:int;default:0"`
 	Price      StockPrice  `gorm:"type:decimal(10,2);default=0"`
