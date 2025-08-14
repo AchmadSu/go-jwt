@@ -18,3 +18,15 @@ func SetTimeZone() {
 	}
 	time.Local = loc
 }
+
+func GetYear() int {
+	return time.Now().Year()
+}
+
+func GetMonth() time.Month {
+	return time.Now().Month()
+}
+
+func GetToday() time.Time {
+	return time.Now()
+}

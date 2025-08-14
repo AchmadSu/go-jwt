@@ -14,6 +14,7 @@ const ProductTable config.TableName = "products"
 
 type ProductRepository interface {
 	FindByProductID(id int) (models.Product, *gorm.DB)
+	FindByProductIDs(ids []uint) (map[uint]models.Product, error)
 	FindByProductCode(code string) (models.Product, *gorm.DB)
 	FindByProductName(name string) (models.Product, *gorm.DB)
 	FindAllProducts(paginate *dto.PaginationRequest) (*dto.PaginationResponse[dto.PublicProduct], error)
@@ -37,6 +38,22 @@ func (r *productRepository) FindByProductID(id int) (models.Product, *gorm.DB) {
 	}
 
 	return productWithUser, result
+}
+
+func (r *productRepository) FindByProductIDs(ids []uint) (map[uint]models.Product, error) {
+	var products []models.Product
+	err := initializers.DB.
+		Where("id IN ?", ids).
+		Find(&products).Error
+	if err != nil {
+		return nil, err
+	}
+
+	productMap := make(map[uint]models.Product)
+	for _, p := range products {
+		productMap[p.ID] = p
+	}
+	return productMap, nil
 }
 
 func (r *productRepository) FindByProductCode(code string) (models.Product, *gorm.DB) {

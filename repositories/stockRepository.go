@@ -1,8 +1,11 @@
 package repositories
 
 import (
+	"net/http"
+
 	"example.com/m/config"
 	"example.com/m/dto"
+	"example.com/m/errs"
 	"example.com/m/helpers"
 	"example.com/m/initializers"
 	"example.com/m/models"
@@ -17,9 +20,18 @@ type StockRepository interface {
 	FindAllStocks(paginate *dto.PaginationRequest, stockRequest *dto.PaginationStockRequest) (*dto.PaginationResponse[dto.PublicStock], error)
 	CreateStock(input *dto.CreateStockInput, creatorId uint) (dto.PublicStock, error)
 	UpdateStock(id int, input *dto.UpdateStockInput, modifierId uint) (dto.PublicStock, error)
+	GetGrandStockPerProductID(productID uint) (int, error)
+	GetGrandStockPerProductIDs(productIDs []uint) (map[uint]int, error)
+	GetStockByProductID(productID uint) ([]models.Stock, error)
+	GetStockByProductIDs(productIDs []uint) (map[*uint][]models.Stock, error)
+	UpdateStockByIDs(trx *gorm.DB, stockMap map[uint]int, modifierID uint) error
 }
 
 type stockRepository struct{}
+
+type result struct {
+	Total int
+}
 
 func NewStockRepository() StockRepository {
 	return &stockRepository{}
@@ -35,6 +47,78 @@ func (r *stockRepository) FindByStockID(id int) (models.Stock, *gorm.DB) {
 	}
 
 	return stockWithUser, result
+}
+
+func (r *stockRepository) GetStockByProductID(productID uint) ([]models.Stock, error) {
+	var stocks []models.Stock
+	result := initializers.DB.Where("product_id = ?", productID).Find(&stocks)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return []models.Stock{}, errs.New("Stock not found", http.StatusNotFound)
+		}
+		return []models.Stock{}, errs.New(utils.GetSafeErrorMessage(result.Error, "Unknown stock error occurred"), http.StatusInternalServerError)
+	}
+
+	return stocks, nil
+}
+
+func (r *stockRepository) GetStockByProductIDs(productIDs []uint) (map[*uint][]models.Stock, error) {
+	var results []models.Stock
+
+	err := initializers.DB.
+		Where("id_product IN ?", productIDs).
+		Where("stock > 0").
+		Order("id_product ASC").
+		Order("date_entry ASC").
+		Find(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	stockMap := make(map[*uint][]models.Stock)
+	for _, stock := range results {
+		stockMap[stock.ProductID] = append(stockMap[stock.ProductID], stock)
+	}
+
+	return stockMap, nil
+}
+
+func (r *stockRepository) GetGrandStockPerProductID(productID uint) (int, error) {
+	var res result
+	err := initializers.DB.
+		Model(&models.Stock{}).
+		Where("id_product = ?", productID).
+		Select("COALESCE(SUM(qty), 0) as total").
+		Scan(&res).Error
+	if err != nil {
+		return 0, errs.New(utils.GetSafeErrorMessage(err, "Out of stock for this product"), http.StatusNotFound)
+	}
+	return res.Total, nil
+}
+
+func (r *stockRepository) GetGrandStockPerProductIDs(productIDs []uint) (map[uint]int, error) {
+	var results []struct {
+		ProductID uint `gorm:"column:id_product"`
+		TotalQty  int  `gorm:"column:total_qty"`
+	}
+
+	err := initializers.DB.Table("stocks").
+		Select("id_product, SUM(qty) as total_qty").
+		Where("id_product IN ?", productIDs).
+		Group("id_product").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	stockMap := make(map[uint]int)
+	for _, r := range results {
+		stockMap[r.ProductID] = r.TotalQty
+	}
+
+	return stockMap, nil
 }
 
 func (r *stockRepository) FindAllStocks(request *dto.PaginationRequest, stockRequest *dto.PaginationStockRequest) (*dto.PaginationResponse[dto.PublicStock], error) {
@@ -166,4 +250,41 @@ func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modif
 	}
 
 	return utils.ToPublicStock(finalStock), nil
+}
+
+func (r *stockRepository) UpdateStockByIDs(trx *gorm.DB, stockMap map[uint]int, modifierID uint) error {
+	if len(stockMap) == 0 {
+		return errs.New("no stock to update", http.StatusBadRequest)
+	}
+
+	stockIDs := make([]uint, 0, len(stockMap))
+	for id := range stockMap {
+		if id == 0 {
+			return errs.New("stock ID cannot be nil", http.StatusBadRequest)
+		}
+		stockIDs = append(stockIDs, id)
+	}
+
+	var count int64
+	if err := trx.Table("stocks").
+		Where("id IN ?", stockIDs).
+		Count(&count).Error; err != nil {
+		return errs.New("failed to check stock IDs", http.StatusInternalServerError)
+	}
+	if count != int64(len(stockIDs)) {
+		return errs.New("one or some stock IDs not found", http.StatusNotFound)
+	}
+
+	for id, qty := range stockMap {
+		if err := trx.Table("stocks").
+			Where("id = ?", id).
+			Updates(map[string]any{
+				"qty":        gorm.Expr("qty - ?", qty),
+				"updated_by": modifierID,
+			}).Error; err != nil {
+			return errs.New("failed to update one or more stock qty", http.StatusNotModified)
+		}
+	}
+
+	return nil
 }
