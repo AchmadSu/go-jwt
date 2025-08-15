@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"fmt"
 	"net/http"
 
 	"example.com/m/config"
@@ -23,8 +24,8 @@ type StockRepository interface {
 	GetGrandStockPerProductID(productID uint) (int, error)
 	GetGrandStockPerProductIDs(productIDs []uint) (map[uint]int, error)
 	GetStockByProductID(productID uint) ([]models.Stock, error)
-	GetStockByProductIDs(productIDs []uint) (map[*uint][]models.Stock, error)
-	UpdateStockByIDs(trx *gorm.DB, stockMap map[uint]int, modifierID uint) error
+	GetStockByProductIDs(productIDs []uint) (map[uint][]models.Stock, error)
+	UpdateStockQtyByIDs(trx *gorm.DB, stockMap map[uint]int, operator string, modifierID uint) error
 }
 
 type stockRepository struct{}
@@ -62,13 +63,15 @@ func (r *stockRepository) GetStockByProductID(productID uint) ([]models.Stock, e
 	return stocks, nil
 }
 
-func (r *stockRepository) GetStockByProductIDs(productIDs []uint) (map[*uint][]models.Stock, error) {
+func (r *stockRepository) GetStockByProductIDs(productIDs []uint) (map[uint][]models.Stock, error) {
 	var results []models.Stock
 
 	err := initializers.DB.
-		Where("id_product IN ?", productIDs).
-		Where("stock > 0").
-		Order("id_product ASC").
+		Table("stocks").
+		Where("is_active = 1").
+		Where("product_id IN ?", productIDs).
+		Where("qty > 0").
+		Order("product_id ASC").
 		Order("date_entry ASC").
 		Find(&results).Error
 
@@ -76,9 +79,9 @@ func (r *stockRepository) GetStockByProductIDs(productIDs []uint) (map[*uint][]m
 		return nil, err
 	}
 
-	stockMap := make(map[*uint][]models.Stock)
+	stockMap := make(map[uint][]models.Stock)
 	for _, stock := range results {
-		stockMap[stock.ProductID] = append(stockMap[stock.ProductID], stock)
+		stockMap[*stock.ProductID] = append(stockMap[*stock.ProductID], stock)
 	}
 
 	return stockMap, nil
@@ -88,7 +91,8 @@ func (r *stockRepository) GetGrandStockPerProductID(productID uint) (int, error)
 	var res result
 	err := initializers.DB.
 		Model(&models.Stock{}).
-		Where("id_product = ?", productID).
+		Where("product_id = ?", productID).
+		Where("is_active = 1").
 		Select("COALESCE(SUM(qty), 0) as total").
 		Scan(&res).Error
 	if err != nil {
@@ -99,14 +103,15 @@ func (r *stockRepository) GetGrandStockPerProductID(productID uint) (int, error)
 
 func (r *stockRepository) GetGrandStockPerProductIDs(productIDs []uint) (map[uint]int, error) {
 	var results []struct {
-		ProductID uint `gorm:"column:id_product"`
+		ProductID uint `gorm:"column:product_id"`
 		TotalQty  int  `gorm:"column:total_qty"`
 	}
 
 	err := initializers.DB.Table("stocks").
-		Select("id_product, SUM(qty) as total_qty").
-		Where("id_product IN ?", productIDs).
-		Group("id_product").
+		Select("product_id, SUM(qty) as total_qty").
+		Where("is_active = 1").
+		Where("product_id IN ?", productIDs).
+		Group("product_id").
 		Scan(&results).Error
 
 	if err != nil {
@@ -252,38 +257,48 @@ func (r *stockRepository) UpdateStock(id int, input *dto.UpdateStockInput, modif
 	return utils.ToPublicStock(finalStock), nil
 }
 
-func (r *stockRepository) UpdateStockByIDs(trx *gorm.DB, stockMap map[uint]int, modifierID uint) error {
+func (r *stockRepository) UpdateStockQtyByIDs(trx *gorm.DB, stockMap map[uint]int, operator string, modifierID uint) error {
 	if len(stockMap) == 0 {
 		return errs.New("no stock to update", http.StatusBadRequest)
+	}
+
+	allowedOperator := []string{"+", "-"}
+	if !utils.ContainsString(allowedOperator, operator) {
+		return errs.New("invalid operator qty stock. only '+' or '-'", http.StatusBadRequest)
 	}
 
 	stockIDs := make([]uint, 0, len(stockMap))
 	for id := range stockMap {
 		if id == 0 {
-			return errs.New("stock ID cannot be nil", http.StatusBadRequest)
+			return errs.New("stock ID cannot be 0", http.StatusBadRequest)
 		}
 		stockIDs = append(stockIDs, id)
 	}
 
-	var count int64
-	if err := trx.Table("stocks").
-		Where("id IN ?", stockIDs).
-		Count(&count).Error; err != nil {
+	var existingIDs []uint
+	if err := trx.Table("stocks").Where("id IN ?", stockIDs).Pluck("id", &existingIDs).Error; err != nil {
 		return errs.New("failed to check stock IDs", http.StatusInternalServerError)
 	}
-	if count != int64(len(stockIDs)) {
-		return errs.New("one or some stock IDs not found", http.StatusNotFound)
+
+	fmt.Printf("stockIDS: %v .existingIDS: %v", stockIDs, existingIDs)
+
+	if len(existingIDs) != len(stockIDs) {
+		missing := utils.DifferenceUint(stockIDs, existingIDs)
+		return errs.New(fmt.Sprintf("stock IDs not found: %v", missing), http.StatusNotFound)
 	}
 
+	caseExpr := "CASE"
 	for id, qty := range stockMap {
-		if err := trx.Table("stocks").
-			Where("id = ?", id).
-			Updates(map[string]any{
-				"qty":        gorm.Expr("qty - ?", qty),
-				"updated_by": modifierID,
-			}).Error; err != nil {
-			return errs.New("failed to update one or more stock qty", http.StatusNotModified)
-		}
+		caseExpr += fmt.Sprintf(" WHEN id = %d THEN qty %s %d", id, operator, qty)
+	}
+	caseExpr += " END"
+
+	result := trx.Exec(
+		fmt.Sprintf("UPDATE stocks SET qty = %s, modified_by = ? WHERE id IN ?", caseExpr),
+		modifierID, stockIDs,
+	).Debug()
+	if err := result.Error; err != nil {
+		return errs.New(utils.GetSafeErrorMessage(err, "unknown update stock qty by ids error occurred"), http.StatusInternalServerError)
 	}
 
 	return nil

@@ -21,5 +21,8 @@ func RegisterProtectedRoutes(r *gin.Engine) {
 		protected.GET("/stocks", controllers.GetStocks)
 		protected.POST("/stocks", controllers.CreateStock)
 		protected.PUT("/stocks", controllers.UpdateStock)
+		//orders
+		protected.GET("/orders", controllers.GetOrders)
+		protected.POST("/orders", controllers.CreateOrder)
 	}
 }

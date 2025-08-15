@@ -20,23 +20,20 @@ type OrderService interface {
 }
 
 type orderService struct {
-	repo        repositories.OrderRepository
-	stockRepo   repositories.StockRepository
-	productRepo repositories.ProductRepository
-	validator   validator.OrderValidatorService
+	repo      repositories.OrderRepository
+	stockRepo repositories.StockRepository
+	validator validator.OrderValidatorService
 }
 
 func NewOrderService(
 	repo repositories.OrderRepository,
 	stockRepo repositories.StockRepository,
-	productRepo repositories.ProductRepository,
 	validator validator.OrderValidatorService,
 ) OrderService {
 	return &orderService{
-		repo:        repo,
-		stockRepo:   stockRepo,
-		productRepo: productRepo,
-		validator:   validator,
+		repo:      repo,
+		stockRepo: stockRepo,
+		validator: validator,
 	}
 }
 
@@ -85,7 +82,7 @@ func (s *orderService) GetAllOrder(request *dto.PaginationRequest, orderData *dt
 	}
 
 	if len(pg.Data) == 0 {
-		return nil, errs.New("Products not found", http.StatusNotFound)
+		return nil, errs.New("orders not found", http.StatusNotFound)
 	}
 
 	return pg, nil
@@ -97,7 +94,7 @@ func (s *orderService) CreateOrder(ctx context.Context, input *dto.CreateOrderIn
 		return dto.PublicOrderWithDetail{}, errs.New("missing or invalid context session user ID", http.StatusInternalServerError)
 	}
 
-	err := s.validator.ValidateCreateOrder(input)
+	err := s.validator.ValidateInsertOrder(input)
 	if err != nil {
 		return dto.PublicOrderWithDetail{}, err
 	}
@@ -141,7 +138,7 @@ func (s *orderService) AssignFifoOrderDetail(details *[]dto.CreateOrderDetail) (
 			return nil, nil, errs.New("product ID cannot be nil", http.StatusBadRequest)
 		}
 
-		stocks, ok := stockMap[d.ProductID]
+		stocks, ok := stockMap[*d.ProductID]
 		if !ok || len(stocks) == 0 {
 			return nil, nil, errs.New(fmt.Sprintf("no stock found for product ID: %d", *d.ProductID), http.StatusBadRequest)
 		}
@@ -156,12 +153,12 @@ func (s *orderService) AssignFifoOrderDetail(details *[]dto.CreateOrderDetail) (
 
 			if requestQty > dto.StockQty(stock.Qty) {
 				total += float64(stock.Price) * float64(stock.Qty)
-				requestQty -= dto.StockQty(stock.Qty)
 				updateStockMap[stock.ID] = int(stock.Qty)
+				requestQty -= dto.StockQty(stock.Qty)
 			} else {
 				total += float64(stock.Price) * float64(requestQty)
-				requestQty = 0
 				updateStockMap[stock.ID] = int(requestQty)
+				requestQty = 0
 				break
 			}
 		}

@@ -16,6 +16,7 @@ func init() {
 	bootstrap.InitUserService()
 	bootstrap.InitProductService()
 	bootstrap.InitStockService()
+	bootstrap.InitialOrderService()
 }
 
 func main() {

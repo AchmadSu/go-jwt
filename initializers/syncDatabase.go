@@ -7,5 +7,7 @@ func SyncDatabase() {
 		&models.User{},
 		&models.Product{},
 		&models.Stock{},
+		&models.Order{},
+		&models.OrderDetails{},
 	)
 }

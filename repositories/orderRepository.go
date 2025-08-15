@@ -57,14 +57,14 @@ func (r *orderRepository) FindByOrderCode(code string) (dto.PublicOrderWithDetai
 
 func (r *orderRepository) FindAllOrders(request *dto.PaginationRequest, orderRequest *dto.PaginationOrderRequest) (*dto.PaginationResponse[dto.PublicOrder], error) {
 	query := initializers.DB.Model(&models.Order{}).
-		Joins("LEFT JOIN users AS creator ON creator.id = order.created_by").
+		Joins("LEFT JOIN users AS creator ON creator.id = orders.created_by").
 		Select([]string{
-			"order.id AS id",
-			"order.total_qty",
-			"order.grand_total",
-			"order.date_entry",
-			"order.created_by AS creator_id",
-			"order.created_at",
+			"orders.id AS id",
+			"orders.total_qty",
+			"orders.grand_total",
+			"orders.date_entry",
+			"orders.created_by AS creator_id",
+			"orders.created_at",
 			"creator.name AS creator_name",
 		})
 
@@ -155,7 +155,7 @@ func (r *orderRepository) CreateOrder(input *dto.CreateOrderInput, updateStockMa
 
 		var stockRepo stockRepository
 
-		if err := stockRepo.UpdateStockByIDs(trx, updateStockMap, creatorId); err != nil {
+		if err := stockRepo.UpdateStockQtyByIDs(trx, updateStockMap, "-", creatorId); err != nil {
 			return err
 		}
 

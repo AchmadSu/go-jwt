@@ -35,6 +35,21 @@ func ContainsString(list []string, val string) bool {
 	return false
 }
 
+func DifferenceUint(a, b []uint) []uint {
+	m := make(map[uint]bool, len(b))
+	for _, v := range b {
+		m[v] = true
+	}
+
+	diff := []uint{}
+	for _, v := range a {
+		if !m[v] {
+			diff = append(diff, v)
+		}
+	}
+	return diff
+}
+
 func AssignedKeyModel(model any, data map[string]any) error {
 	v := reflect.ValueOf(model)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {

@@ -11,7 +11,8 @@ import (
 )
 
 type OrderValidatorService interface {
-	ValidateCreateOrder(input *dto.CreateOrderInput) error
+	ValidateInsertOrder(input *dto.CreateOrderInput) error
+	ValidateDetailOrder(details *[]dto.CreateOrderDetail) error
 }
 
 type orderValidatorService struct {

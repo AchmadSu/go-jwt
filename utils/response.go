@@ -75,6 +75,9 @@ func GetSafeStatusCode(statusCode int) int {
 
 func PrintErrorResponse(resp *Response, err error, message string) *Response {
 	log.Printf("[ERROR] %v", err)
+
+	// logStackTrace(10)
+
 	if httpErr, ok := err.(*errs.HTTPError); ok {
 		resp.SetStatus(httpErr.StatusCode).
 			SetMessage(message).
