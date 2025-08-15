@@ -74,7 +74,7 @@ func GetOrders(c *gin.Context) {
 		return
 	}
 
-	message = "Get stocks successfully"
+	message = "Get orders successfully"
 	resp.SetMessage(message).
 		SetPayload(pg.Data).
 		SetMeta(gin.H{

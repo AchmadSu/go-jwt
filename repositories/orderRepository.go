@@ -60,6 +60,7 @@ func (r *orderRepository) FindAllOrders(request *dto.PaginationRequest, orderReq
 		Joins("LEFT JOIN users AS creator ON creator.id = orders.created_by").
 		Select([]string{
 			"orders.id AS id",
+			"orders.code AS code",
 			"orders.total_qty",
 			"orders.grand_total",
 			"orders.date_entry",
