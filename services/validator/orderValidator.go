@@ -3,6 +3,7 @@ package validator
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"example.com/m/dto"
 	"example.com/m/errs"
@@ -38,6 +39,7 @@ func (v *orderValidatorService) ValidateDetailOrder(details *[]dto.CreateOrderDe
 	if details == nil || len(*details) == 0 {
 		return errs.New("order must have at least one detail product", http.StatusBadRequest)
 	}
+
 	productIDs := make([]uint, 0)
 	seen := make(map[uint]struct{})
 	for _, d := range *details {
@@ -54,42 +56,54 @@ func (v *orderValidatorService) ValidateDetailOrder(details *[]dto.CreateOrderDe
 		}
 	}
 
+	productMap, err := v.productRepo.FindByProductIDs(productIDs)
+	if err != nil {
+		return err
+	}
+
+	var inactiveMessage []string
+	for _, p := range productMap {
+		if p.IsActive != 1 {
+			inactiveMessage = append(inactiveMessage,
+				fmt.Sprintf("product: %s (%s) is inactive", p.Name, p.Code))
+		}
+	}
+	if len(inactiveMessage) > 0 {
+		return errs.New(strings.Join(inactiveMessage, "\n"), http.StatusBadRequest)
+	}
+
 	stockMap, err := v.stockRepo.GetGrandStockPerProductIDs(productIDs)
 	if err != nil {
 		return err
 	}
 
-	insufficientIDs := make([]uint, 0)
+	var notFoundIDs []string
+	var insufficientMessage []string
 	for _, d := range *details {
-		grandQty := stockMap[*d.ProductID]
-		if grandQty < int(d.Qty) {
-			insufficientIDs = append(insufficientIDs, *d.ProductID)
+		grandQty, ok := stockMap[*d.ProductID]
+		if !ok {
+			notFoundIDs = append(notFoundIDs, fmt.Sprintf("%d", *d.ProductID))
+			continue
 		}
-	}
-
-	if len(insufficientIDs) == 0 {
-		return nil
-	}
-
-	productMap, err := v.productRepo.FindByProductIDs(insufficientIDs)
-	if err != nil {
-		return err
-	}
-
-	for _, d := range *details {
-		grandQty := stockMap[*d.ProductID]
 		if grandQty < int(d.Qty) {
-			if p, ok := productMap[*d.ProductID]; ok && p.Code != "" && p.Name != "" {
-				return errs.New(
-					fmt.Sprintf("qty of %s (%s) is greater than balance qty", p.Name, p.Code),
-					http.StatusBadRequest,
-				)
+			if p, ok := productMap[*d.ProductID]; ok {
+				insufficientMessage = append(insufficientMessage,
+					fmt.Sprintf("qty of %s (%s) is greater than balance qty", p.Name, p.Code))
+			} else {
+				insufficientMessage = append(insufficientMessage,
+					fmt.Sprintf("qty of product id: %d is greater than balance qty", *d.ProductID))
 			}
-			return errs.New(
-				fmt.Sprintf("qty of product id: %d is greater than balance qty", *d.ProductID),
-				http.StatusBadRequest,
-			)
 		}
 	}
+
+	if len(notFoundIDs) > 0 {
+		return errs.New(fmt.Sprintf("product ids not found: %s",
+			strings.Join(notFoundIDs, ", ")), http.StatusBadRequest)
+	}
+
+	if len(insufficientMessage) > 0 {
+		return errs.New(strings.Join(insufficientMessage, "\n"), http.StatusBadRequest)
+	}
+
 	return nil
 }
