@@ -1,5 +1,5 @@
 # FIFO Order
-## Deskripsi Singkat
+## Summarize
 This Repo is helping the user to make an order request which has some detail with FIFO unit price.
 
 ## About Me
